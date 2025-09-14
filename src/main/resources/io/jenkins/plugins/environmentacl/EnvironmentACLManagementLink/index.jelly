@@ -3,14 +3,13 @@
   
   <l:layout title="Environment ACL Manager" permission="${app.ADMINISTER}">
     <l:header />
-    
+    <j:set var="config" value="${it.configuration}" />
+    <j:set var="descriptor" value="${config.descriptor}" />
+
     <l:main-panel>
       <h1>Environment ACL Manager</h1>
       
       <f:form method="post" action="configSubmit" name="config">
-        <j:set var="config" value="${it.configuration}" />
-        <j:set var="descriptor" value="${config.descriptor}" />
-        
         <f:section title="YAML Configuration">
           
           <f:entry title="Configuration">
@@ -29,96 +28,94 @@
         
       </f:form>
       
-      <!-- Current Configuration Summary using Jackson POJOs -->
-      <j:if test="${!config.environmentGroups.isEmpty() || !config.aclRules.isEmpty()}">
-        <f:section title="Current Configuration Summary">
-          <j:if test="${!config.environmentGroups.isEmpty()}">
+    <!-- Current Configuration Summary using Jackson POJOs -->
+    <f:section title="Current Configuration Summary">
+        <j:if test="${!config.environmentGroups.isEmpty()}">
             <h4>Environment Groups (${config.environmentGroups.size()})</h4>
             <table class="jenkins-table">
-              <thead>
+                <thead>
                 <tr>
-                  <th>Group Name</th>
-                  <th>Environments</th>
-                  <th>SSH Keys</th>
-                  <th>Vault Keys</th>
-                  <th>Node Labels</th>
+                    <th>Group Name</th>
+                    <th>Environments</th>
+                    <th>SSH Keys</th>
+                    <th>Vault Keys</th>
+                    <th>Node Labels</th>
                 </tr>
-              </thead>
-              <tbody>
+                </thead>
+                <tbody>
                 <j:forEach var="group" items="${config.environmentGroups}">
-                  <tr>
+                    <tr>
                     <td><strong>${group.name}</strong><br/><small>${group.description}</small></td>
                     <td><j:forEach var="env" items="${group.environments}" varStatus="envStatus">
-                      ${env}<j:if test="${!envStatus.last}">, </j:if>
+                        ${env}<j:if test="${!envStatus.last}">, </j:if>
                     </j:forEach></td>
                     <td><j:forEach var="key" items="${group.sshKeys}" varStatus="keyStatus">
-                      ${key}<j:if test="${!keyStatus.last}">, </j:if>
+                        ${key}<j:if test="${!keyStatus.last}">, </j:if>
                     </j:forEach></td>
                     <td><j:forEach var="key" items="${group.vaultKeys}" varStatus="keyStatus">
-                      ${key}<j:if test="${!keyStatus.last}">, </j:if>
+                        ${key}<j:if test="${!keyStatus.last}">, </j:if>
                     </j:forEach></td>
                     <td><j:forEach var="label" items="${group.nodeLabels}" varStatus="labelStatus">
-                      ${label}<j:if test="${!labelStatus.last}">, </j:if>
+                        ${label}<j:if test="${!labelStatus.last}">, </j:if>
                     </j:forEach></td>
-                  </tr>
+                    </tr>
                 </j:forEach>
-              </tbody>
+                </tbody>
             </table>
-          </j:if>
-          
-          <j:if test="${!config.aclRules.isEmpty()}">
-            <h4>ACL Rules (${config.aclRules.size()})</h4>
-            <table class="jenkins-table">
-              <thead>
+        </j:if>
+        
+        <j:if test="${!config.aclRules.isEmpty()}">
+        <h4>ACL Rules (${config.aclRules.size()})</h4>
+        <table class="jenkins-table">
+            <thead>
+            <tr>
+                <th>Rule Name</th>
+                <th>Type</th>
+                <th>Priority</th>
+                <th>Jobs</th>
+                <th>Environments</th>
+                <th>Users/Groups</th>
+            </tr>
+            </thead>
+            <tbody>
+            <j:forEach var="rule" items="${config.aclRules}">
                 <tr>
-                  <th>Rule Name</th>
-                  <th>Type</th>
-                  <th>Priority</th>
-                  <th>Jobs</th>
-                  <th>Environments</th>
-                  <th>Users/Groups</th>
+                <td><strong>${rule.name}</strong></td>
+                <td><span class="${rule.type == 'allow' ? 'jenkins-badge jenkins-badge--success' : 'jenkins-badge jenkins-badge--error'}">${rule.type}</span></td>
+                <td>${rule.priority}</td>
+                <td><j:forEach var="job" items="${rule.jobs}" varStatus="jobStatus">
+                    ${job}<j:if test="${!jobStatus.last}">, </j:if>
+                </j:forEach></td>
+                <td>
+                    <j:if test="${!rule.environments.isEmpty()}">
+                    Envs: <j:forEach var="env" items="${rule.environments}" varStatus="envStatus">
+                        ${env}<j:if test="${!envStatus.last}">, </j:if>
+                    </j:forEach><br/>
+                    </j:if>
+                    <j:if test="${!rule.envCategories.isEmpty()}">
+                    Groups: <j:forEach var="cat" items="${rule.envCategories}" varStatus="catStatus">
+                        ${cat}<j:if test="${!catStatus.last}">, </j:if>
+                    </j:forEach>
+                    </j:if>
+                </td>
+                <td>
+                    <j:if test="${!rule.users.isEmpty()}">
+                    Users: <j:forEach var="user" items="${rule.users}" varStatus="userStatus">
+                        ${user}<j:if test="${!userStatus.last}">, </j:if>
+                    </j:forEach><br/>
+                    </j:if>
+                    <j:if test="${!rule.groups.isEmpty()}">
+                    Groups: <j:forEach var="group" items="${rule.groups}" varStatus="groupStatus">
+                        ${group}<j:if test="${!groupStatus.last}">, </j:if>
+                    </j:forEach>
+                    </j:if>
+                </td>
                 </tr>
-              </thead>
-              <tbody>
-                <j:forEach var="rule" items="${config.aclRules}">
-                  <tr>
-                    <td><strong>${rule.name}</strong></td>
-                    <td><span class="${rule.type == 'allow' ? 'jenkins-badge jenkins-badge--success' : 'jenkins-badge jenkins-badge--error'}">${rule.type}</span></td>
-                    <td>${rule.priority}</td>
-                    <td><j:forEach var="job" items="${rule.jobs}" varStatus="jobStatus">
-                      ${job}<j:if test="${!jobStatus.last}">, </j:if>
-                    </j:forEach></td>
-                    <td>
-                      <j:if test="${!rule.environments.isEmpty()}">
-                        Envs: <j:forEach var="env" items="${rule.environments}" varStatus="envStatus">
-                          ${env}<j:if test="${!envStatus.last}">, </j:if>
-                        </j:forEach><br/>
-                      </j:if>
-                      <j:if test="${!rule.envCategories.isEmpty()}">
-                        Groups: <j:forEach var="cat" items="${rule.envCategories}" varStatus="catStatus">
-                          ${cat}<j:if test="${!catStatus.last}">, </j:if>
-                        </j:forEach>
-                      </j:if>
-                    </td>
-                    <td>
-                      <j:if test="${!rule.users.isEmpty()}">
-                        Users: <j:forEach var="user" items="${rule.users}" varStatus="userStatus">
-                          ${user}<j:if test="${!userStatus.last}">, </j:if>
-                        </j:forEach><br/>
-                      </j:if>
-                      <j:if test="${!rule.groups.isEmpty()}">
-                        Groups: <j:forEach var="group" items="${rule.groups}" varStatus="groupStatus">
-                          ${group}<j:if test="${!groupStatus.last}">, </j:if>
-                        </j:forEach>
-                      </j:if>
-                    </td>
-                  </tr>
-                </j:forEach>
-              </tbody>
-            </table>
-          </j:if>
-        </f:section>
-      </j:if>
+            </j:forEach>
+            </tbody>
+        </table>
+        </j:if>
+    </f:section>
       
     </l:main-panel>
   </l:layout>

@@ -1,16 +1,15 @@
 package io.jenkins.plugins.environmentacl.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EnvironmentACLConfig {
-    
+
     public List<EnvironmentGroupConfig> environmentGroups = new ArrayList<>();
     public List<ACLRuleConfig> rules = new ArrayList<>();
-    
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class EnvironmentGroupConfig {
         public String name;
@@ -20,7 +19,7 @@ public class EnvironmentACLConfig {
         public List<String> vaultKeys = new ArrayList<>();
         public List<String> nodeLabels = new ArrayList<>();
     }
-    
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ACLRuleConfig {
         public String name;
