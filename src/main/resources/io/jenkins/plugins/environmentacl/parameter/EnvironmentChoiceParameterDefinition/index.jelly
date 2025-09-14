@@ -1,27 +1,15 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <style>
-    .environment-choice-select {
-        background: var(--input-color);
-        border: 2px solid var(--input-border);
-        border-radius: var(--form-input-border-radius);
-        box-shadow: var(--form-input-glow);
-        display: block;
-        padding: var(--form-input-padding);
-        transition: all var(--standard-transition), height 0s, padding 0s;
-        width: 100%;
-        color: var(--text-color);
-        font-family: inherit;
-        font-size: var(--font-size-sm);
-    }
-  </style>
-  <f:entry title="${it.name}" description="${it.description}">
-    <select name="value" class="environment-choice-select">
-      <j:forEach var="choice" items="${it.choices}">
-        <option value="${choice}">
-          <j:out value="${choice}"/>
-        </option>
-      </j:forEach>
-    </select>
-  </f:entry>
+    <f:entry title="${it.name}" description="${it.description}">
+    <div name="parameter">
+        <input type="hidden" name="name" value="${it.name}" />
+        <select name="value" class="jenkins-input">
+        <j:forEach var="choice" items="${it.choices}">
+            <option value="${choice}">
+            <j:out value="${choice}"/>
+            </option>
+        </j:forEach>
+        </select>
+    </div>
+    </f:entry>
 </j:jelly>

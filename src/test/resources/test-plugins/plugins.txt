@@ -1,7 +1,0 @@
-workflow-aggregator:latest
-configuration-as-code:latest
-job-dsl:latest
-credentials:latest
-ssh-credentials:latest
-plain-credentials:latest
-matrix-auth:latest
