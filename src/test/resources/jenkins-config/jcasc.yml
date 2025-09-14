@@ -1,0 +1,67 @@
+unclassified:
+  environmentACL:
+    environmentGroups:
+      - name: "development"
+        description: "Development environments"
+        sshCredentialId: "dev-ssh-key"
+        environments:
+          - "dev1"
+          - "dev2"
+          - "staging"
+        vaultCredentials:
+          - vaultId: "dev-vault"
+            credentialId: "dev-vault-token"
+            description: "Development vault access"
+          - vaultId: "secrets-vault"
+            credentialId: "dev-secrets-token"
+            description: "Development secrets vault"
+      
+      - name: "production"
+        description: "Production environments"
+        sshCredentialId: "prod-ssh-key"
+        environments:
+          - "prod1"
+          - "prod2"
+        vaultCredentials:
+          - vaultId: "prod-vault"
+            credentialId: "prod-vault-token"
+            description: "Production vault access"
+          - vaultId: "secrets-vault"
+            credentialId: "prod-secrets-token"
+            description: "Production secrets vault"
+    
+    aclRules:
+      - name: "system-full-access"
+        type: "allow"
+        priority: 300
+        jobs: ["*"]
+        environments: ["*"]
+        users: ["SYSTEM"]
+
+      - name: "developers-dev-access"
+        type: "allow"
+        priority: 100
+        jobs: ["*"]
+        environmentGroups: ["development"]
+        groups: ["developers"]
+      
+      - name: "devops-full-access"
+        type: "allow"
+        priority: 200
+        jobs: ["*"]
+        environments: ["*"]
+        groups: ["devops", "admin"]
+      
+      - name: "deny-contractors-prod"
+        type: "deny"
+        priority: 300
+        jobs: ["*"]
+        environmentGroups: ["production"]
+        groups: ["contractors"]
+
+      - name: "testuser-access"
+        type: "allow"
+        priority: 200
+        jobs: ["*"]
+        environments: ["*"]
+        users: ["testuser"]

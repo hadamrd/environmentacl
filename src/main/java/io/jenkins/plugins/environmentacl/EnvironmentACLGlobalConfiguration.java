@@ -1,32 +1,24 @@
 package io.jenkins.plugins.environmentacl;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
+import hudson.Extension;
+import jenkins.model.GlobalConfiguration;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.StaplerRequest;
+import net.sf.json.JSONObject;
 
-import hudson.Extension;
-import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.ACLRuleConfig;
-import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.EnvironmentGroupConfig;
-import jenkins.model.GlobalConfiguration;
+import io.jenkins.plugins.environmentacl.model.EnvironmentGroup;
+import io.jenkins.plugins.environmentacl.model.ACLRule;
 
-/**
- * Minimal GlobalConfiguration ONLY for JCasC support.
- * All UI configuration is handled by EnvironmentACLManagementLink.
- * This class just provides the JCasC entry point and data storage.
- */
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Extension
 @Symbol("environmentACL")
 public class EnvironmentACLGlobalConfiguration extends GlobalConfiguration {
-
-    private static final Logger LOGGER = Logger.getLogger(EnvironmentACLGlobalConfiguration.class.getName());
-
-    // Data storage - shared with ManagementLink
-    private List<EnvironmentGroupConfig> environmentGroups = new ArrayList<>();
-    private List<ACLRuleConfig> rules = new ArrayList<>();
+    private List<EnvironmentGroup> environmentGroups = new ArrayList<>();
+    private List<ACLRule> aclRules = new ArrayList<>();
 
     public EnvironmentACLGlobalConfiguration() {
         load();
@@ -36,77 +28,52 @@ public class EnvironmentACLGlobalConfiguration extends GlobalConfiguration {
         return GlobalConfiguration.all().get(EnvironmentACLGlobalConfiguration.class);
     }
 
-    // ========== Simple Getters/Setters for JCasC ==========
-    
-    public List<EnvironmentGroupConfig> getEnvironmentGroups() {
+    // Environment Groups
+    public List<EnvironmentGroup> getEnvironmentGroups() {
         return environmentGroups != null ? environmentGroups : new ArrayList<>();
     }
 
     @DataBoundSetter
-    public void setEnvironmentGroups(List<EnvironmentGroupConfig> environmentGroups) {
+    public void setEnvironmentGroups(List<EnvironmentGroup> environmentGroups) {
         this.environmentGroups = environmentGroups != null ? environmentGroups : new ArrayList<>();
         save();
     }
 
-    public List<ACLRuleConfig> getRules() {
-        return rules != null ? rules : new ArrayList<>();
+    // ACL Rules
+    public List<ACLRule> getAclRules() {
+        return aclRules != null ? aclRules : new ArrayList<>();
     }
-    
+
     @DataBoundSetter
-    public void setRules(List<ACLRuleConfig> rules) {
-        this.rules = rules != null ? rules : new ArrayList<>();
+    public void setAclRules(List<ACLRule> aclRules) {
+        this.aclRules = aclRules != null ? aclRules : new ArrayList<>();
         save();
     }
-    
-    // ========== NO UI METHODS - No configure(), no Jelly files needed! ==========
-    // The UI is entirely handled by EnvironmentACLManagementLink
-    
-    // ========== Helper Methods (used by other components) ==========
-    
+
+    // Utility methods
     public List<String> getAllEnvironments() {
         return getEnvironmentGroups().stream()
-                .flatMap(group -> group.environments.stream())
+                .flatMap(group -> group.getEnvironments().stream())
                 .distinct()
                 .collect(Collectors.toList());
     }
 
-    public List<String> getAllEnvironmentGroups() {
+    public EnvironmentGroup getEnvironmentGroupForEnvironment(String environment) {
         return getEnvironmentGroups().stream()
-                .map(group -> group.name)
-                .collect(Collectors.toList());
-    }
-
-    public EnvironmentGroupConfig getEnvironmentGroupByName(String name) {
-        return getEnvironmentGroups().stream()
-                .filter(group -> group.name.equals(name))
+                .filter(group -> group.getEnvironments().contains(environment))
                 .findFirst()
                 .orElse(null);
     }
 
-    public EnvironmentGroupConfig getEnvironmentGroupForEnvironment(String environment) {
-        return getEnvironmentGroups().stream()
-                .filter(group -> group.environments.contains(environment))
-                .findFirst()
-                .orElse(null);
+    public String getVaultCredentialId(String environment, String vaultId) {
+        EnvironmentGroup group = getEnvironmentGroupForEnvironment(environment);
+        return group != null ? group.getVaultCredentialId(vaultId) : null;
     }
 
-    public List<String> getSshKeysForEnvironment(String environment) {
-        EnvironmentGroupConfig group = getEnvironmentGroupForEnvironment(environment);
-        return group != null ? new ArrayList<>(group.sshKeys) : new ArrayList<>();
-    }
-
-    public List<String> getVaultKeysForEnvironment(String environment) {
-        EnvironmentGroupConfig group = getEnvironmentGroupForEnvironment(environment);
-        return group != null ? new ArrayList<>(group.vaultKeys) : new ArrayList<>();
-    }
-
-    public List<String> getNodeLabelsForEnvironment(String environment) {
-        EnvironmentGroupConfig group = getEnvironmentGroupForEnvironment(environment);
-        return group != null ? new ArrayList<>(group.nodeLabels) : new ArrayList<>();
-    }
-    
-    // Compatibility
-    public List<ACLRuleConfig> getAclRules() {
-        return getRules();
+    @Override
+    public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
+        req.bindJSON(this, json);
+        save();
+        return true;
     }
 }

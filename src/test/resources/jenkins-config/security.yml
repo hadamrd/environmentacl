@@ -1,0 +1,26 @@
+jenkins:
+  systemMessage: "Jenkins with Environment ACL"
+  numExecutors: 2
+  
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "testuser"
+          password: "testpass"
+
+  authorizationStrategy:
+    globalMatrix:
+      entries:
+        - user:
+            name: "testuser"
+            permissions:
+              - "Overall/Administer"
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Read"
+              - "Job/Configure"
+        - user:
+            name: "SYSTEM"
+            permissions:
+              - "Overall/Administer"
