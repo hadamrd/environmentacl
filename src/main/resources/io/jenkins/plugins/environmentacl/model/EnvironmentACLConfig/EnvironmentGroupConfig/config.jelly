@@ -1,0 +1,62 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" 
+         xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  
+  <!-- This file goes in: src/main/resources/io/jenkins/plugins/environmentacl/model/EnvironmentACLConfig/EnvironmentGroupConfig/config.jelly -->
+  
+  <f:entry title="Group Name" field="name">
+    <f:textbox />
+  </f:entry>
+  
+  <f:entry title="Description" field="description">
+    <f:textbox />
+  </f:entry>
+  
+  <f:entry title="Environments" field="environments">
+    <f:repeatableProperty field="environments" noAddButton="false">
+      <f:entry title="">
+        <f:textbox field="value" />
+        <f:repeatableDeleteButton />
+      </f:entry>
+    </f:repeatableProperty>
+  </f:entry>
+  
+  <f:advanced>
+    <f:entry title="SSH Keys" field="sshKeys" 
+             description="Credential IDs for SSH keys">
+      <f:repeatableProperty field="sshKeys" noAddButton="false">
+        <f:entry title="">
+          <f:textbox field="value" />
+          <f:repeatableDeleteButton />
+        </f:entry>
+      </f:repeatableProperty>
+    </f:entry>
+    
+    <f:entry title="Vault Keys" field="vaultKeys" 
+             description="Credential IDs for Vault keys">
+      <f:repeatableProperty field="vaultKeys" noAddButton="false">
+        <f:entry title="">
+          <f:textbox field="value" />
+          <f:repeatableDeleteButton />
+        </f:entry>
+      </f:repeatableProperty>
+    </f:entry>
+    
+    <f:entry title="Node Labels" field="nodeLabels" 
+             description="Jenkins node labels for this environment">
+      <f:repeatableProperty field="nodeLabels" noAddButton="false">
+        <f:entry title="">
+          <f:textbox field="value" />
+          <f:repeatableDeleteButton />
+        </f:entry>
+      </f:repeatableProperty>
+    </f:entry>
+  </f:advanced>
+  
+  <f:entry title="">
+    <div align="right">
+      <f:repeatableDeleteButton />
+    </div>
+  </f:entry>
+  
+</j:jelly>

@@ -1,121 +1,126 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" 
+         xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   
+  <!-- This is the ONLY UI for the plugin - no duplication! -->
   <l:layout title="Environment ACL Manager" permission="${app.ADMINISTER}">
     <l:header />
-    <j:set var="config" value="${it.configuration}" />
-    <j:set var="descriptor" value="${config.descriptor}" />
 
     <l:main-panel>
       <h1>Environment ACL Manager</h1>
       
+      <!-- Show any errors/success -->
+      <j:if test="${request.getParameter('error') != null}">
+        <div style="background: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 5px;">
+          ⚠️ ${request.getParameter('error')}
+        </div>
+      </j:if>
+      
+      <!-- Configuration Form -->
       <f:form method="post" action="configSubmit" name="config">
-        <f:section title="YAML Configuration">
+        <f:section title="Configuration">
           
-          <f:entry title="Configuration">
-            <f:textarea style="width:100%; height:400px; font-family:monospace;" 
-                        name="yamlConfiguration" value="${config.yamlConfiguration}"/>
+          <div style="background: #e7f3ff; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
+            💡 <strong>Tip:</strong> This configuration also supports Jenkins Configuration as Code (JCasC). 
+            Use the Export button to get JCasC format.
+          </div>
+          
+          <f:entry title="YAML Configuration" 
+                   description="Define environment groups and ACL rules">
+            <f:textarea name="yamlConfiguration" 
+                       value="${it.currentYamlConfiguration}"
+                       style="width:100%; height:500px; font-family:monospace;"/>
           </f:entry>
           
-          <f:validateButton title="Validate YAML" progress="Validating..." 
-                           method="checkYamlConfiguration" with="yamlConfiguration"/>
-          
+          <f:validateButton title="Validate YAML" 
+                           progress="Validating..." 
+                           method="checkYamlConfiguration" 
+                           with="yamlConfiguration"/>
         </f:section>
         
         <f:bottomButtonBar>
           <f:submit value="Save Configuration" />
+          <f:repeatableDeleteButton value="Export as JCasC" onclick="window.location='exportJCasC'; return false;" />
         </f:bottomButtonBar>
-        
       </f:form>
       
-    <!-- Current Configuration Summary using Jackson POJOs -->
-    <f:section title="Current Configuration Summary">
-        <j:if test="${!config.environmentGroups.isEmpty()}">
-            <h4>Environment Groups (${config.environmentGroups.size()})</h4>
+      <!-- Current Configuration Display -->
+      <j:set var="config" value="${it.configuration}" />
+      
+      <j:if test="${!config.environmentGroups.isEmpty() or !config.rules.isEmpty()}">
+        <f:section title="Current Configuration">
+          
+          <!-- Environment Groups -->
+          <j:if test="${!config.environmentGroups.isEmpty()}">
+            <h3>Environment Groups (${config.environmentGroups.size()})</h3>
             <table class="jenkins-table">
-                <thead>
+              <thead>
                 <tr>
-                    <th>Group Name</th>
-                    <th>Environments</th>
-                    <th>SSH Keys</th>
-                    <th>Vault Keys</th>
-                    <th>Node Labels</th>
+                  <th>Group</th>
+                  <th>Environments</th>
+                  <th>SSH Keys</th>
+                  <th>Vault Keys</th>
                 </tr>
-                </thead>
-                <tbody>
+              </thead>
+              <tbody>
                 <j:forEach var="group" items="${config.environmentGroups}">
-                    <tr>
-                    <td><strong>${group.name}</strong><br/><small>${group.description}</small></td>
-                    <td><j:forEach var="env" items="${group.environments}" varStatus="envStatus">
-                        ${env}<j:if test="${!envStatus.last}">, </j:if>
-                    </j:forEach></td>
-                    <td><j:forEach var="key" items="${group.sshKeys}" varStatus="keyStatus">
-                        ${key}<j:if test="${!keyStatus.last}">, </j:if>
-                    </j:forEach></td>
-                    <td><j:forEach var="key" items="${group.vaultKeys}" varStatus="keyStatus">
-                        ${key}<j:if test="${!keyStatus.last}">, </j:if>
-                    </j:forEach></td>
-                    <td><j:forEach var="label" items="${group.nodeLabels}" varStatus="labelStatus">
-                        ${label}<j:if test="${!labelStatus.last}">, </j:if>
-                    </j:forEach></td>
-                    </tr>
+                  <tr>
+                    <td><strong>${group.name}</strong></td>
+                    <td>${group.environments.join(', ')}</td>
+                    <td>${group.sshKeys.join(', ')}</td>
+                    <td>${group.vaultKeys.join(', ')}</td>
+                  </tr>
                 </j:forEach>
-                </tbody>
+              </tbody>
             </table>
-        </j:if>
-        
-        <j:if test="${!config.aclRules.isEmpty()}">
-        <h4>ACL Rules (${config.aclRules.size()})</h4>
-        <table class="jenkins-table">
-            <thead>
-            <tr>
-                <th>Rule Name</th>
-                <th>Type</th>
-                <th>Priority</th>
-                <th>Jobs</th>
-                <th>Environments</th>
-                <th>Users/Groups</th>
-            </tr>
-            </thead>
-            <tbody>
-            <j:forEach var="rule" items="${config.aclRules}">
+          </j:if>
+          
+          <!-- ACL Rules -->
+          <j:if test="${!config.rules.isEmpty()}">
+            <h3>ACL Rules (${config.rules.size()})</h3>
+            <table class="jenkins-table">
+              <thead>
                 <tr>
-                <td><strong>${rule.name}</strong></td>
-                <td><span class="${rule.type == 'allow' ? 'jenkins-badge jenkins-badge--success' : 'jenkins-badge jenkins-badge--error'}">${rule.type}</span></td>
-                <td>${rule.priority}</td>
-                <td><j:forEach var="job" items="${rule.jobs}" varStatus="jobStatus">
-                    ${job}<j:if test="${!jobStatus.last}">, </j:if>
-                </j:forEach></td>
-                <td>
-                    <j:if test="${!rule.environments.isEmpty()}">
-                    Envs: <j:forEach var="env" items="${rule.environments}" varStatus="envStatus">
-                        ${env}<j:if test="${!envStatus.last}">, </j:if>
-                    </j:forEach><br/>
-                    </j:if>
-                    <j:if test="${!rule.envCategories.isEmpty()}">
-                    Groups: <j:forEach var="cat" items="${rule.envCategories}" varStatus="catStatus">
-                        ${cat}<j:if test="${!catStatus.last}">, </j:if>
-                    </j:forEach>
-                    </j:if>
-                </td>
-                <td>
-                    <j:if test="${!rule.users.isEmpty()}">
-                    Users: <j:forEach var="user" items="${rule.users}" varStatus="userStatus">
-                        ${user}<j:if test="${!userStatus.last}">, </j:if>
-                    </j:forEach><br/>
-                    </j:if>
-                    <j:if test="${!rule.groups.isEmpty()}">
-                    Groups: <j:forEach var="group" items="${rule.groups}" varStatus="groupStatus">
-                        ${group}<j:if test="${!groupStatus.last}">, </j:if>
-                    </j:forEach>
-                    </j:if>
-                </td>
+                  <th>Rule</th>
+                  <th>Type</th>
+                  <th>Priority</th>
+                  <th>Jobs</th>
+                  <th>Targets</th>
                 </tr>
-            </j:forEach>
-            </tbody>
-        </table>
-        </j:if>
-    </f:section>
+              </thead>
+              <tbody>
+                <j:forEach var="rule" items="${config.rules}">
+                  <tr>
+                    <td><strong>${rule.name}</strong></td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${rule.type == 'allow'}">
+                          <span style="color:green">✓ ${rule.type}</span>
+                        </j:when>
+                        <j:otherwise>
+                          <span style="color:red">✗ ${rule.type}</span>
+                        </j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>${rule.priority}</td>
+                    <td>${rule.jobs.join(', ')}</td>
+                    <td>
+                      <j:if test="${!rule.users.isEmpty()}">
+                        Users: ${rule.users.join(', ')}
+                      </j:if>
+                      <j:if test="${!rule.groups.isEmpty()}">
+                        <j:if test="${!rule.users.isEmpty()}"><br/></j:if>
+                        Groups: ${rule.groups.join(', ')}
+                      </j:if>
+                    </td>
+                  </tr>
+                </j:forEach>
+              </tbody>
+            </table>
+          </j:if>
+          
+        </f:section>
+      </j:if>
       
     </l:main-panel>
   </l:layout>

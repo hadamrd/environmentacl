@@ -1,0 +1,10 @@
+jenkins:
+  systemMessage: "Jenkins configured automatically by Jenkins Configuration as Code plugin"
+  numExecutors: 2
+  scmCheckoutRetryCount: 2
+  mode: NORMAL
+unclassified:
+  environmentACL:  # ← Found by @Symbol
+    environmentGroups:
+      - name: production
+        environments: [prod-1]

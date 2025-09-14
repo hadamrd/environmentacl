@@ -1,0 +1,39 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" 
+         xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  
+  <!-- This file goes in: src/main/resources/io/jenkins/plugins/environmentacl/EnvironmentACLGlobalConfiguration/global.jelly -->
+  
+  <f:section title="Environment ACL Manager Configuration">
+    
+    <!-- Toggle between Form mode and YAML mode -->
+    <f:optionalBlock name="useYamlMode" title="Use YAML Configuration Mode" checked="${instance.useYamlMode}">
+      <f:entry title="YAML Configuration" field="yamlConfiguration">
+        <f:textarea style="width:100%; height:400px; font-family:monospace;"/>
+      </f:entry>
+      <f:validateButton title="Validate YAML" progress="Validating..." 
+                       method="checkYamlConfiguration" with="yamlConfiguration"/>
+    </f:optionalBlock>
+    
+    <!-- Form-based configuration (like Role Strategy) -->
+    <j:if test="${!instance.useYamlMode}">
+      
+      <!-- Environment Groups Section -->
+      <f:section title="Environment Groups">
+        <f:repeatableProperty field="environmentGroups" header="Environment Group" add="Add Environment Group">
+          <f:entry title="" />
+        </f:repeatableProperty>
+      </f:section>
+      
+      <!-- ACL Rules Section -->
+      <f:section title="Access Control Rules">
+        <f:repeatableProperty field="rules" header="ACL Rule" add="Add ACL Rule">
+          <f:entry title="" />
+        </f:repeatableProperty>
+      </f:section>
+      
+    </j:if>
+    
+  </f:section>
+  
+</j:jelly>

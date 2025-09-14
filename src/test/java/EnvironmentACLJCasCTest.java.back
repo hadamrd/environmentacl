@@ -1,0 +1,89 @@
+package io.jenkins.plugins.environmentacl;
+
+import static org.junit.Assert.*;
+
+import io.jenkins.plugins.casc.ConfigurationContext;
+import io.jenkins.plugins.casc.ConfiguratorRegistry;
+import io.jenkins.plugins.casc.misc.ConfiguredWithCode;
+import io.jenkins.plugins.casc.misc.JenkinsConfiguredWithCodeRule;
+import io.jenkins.plugins.casc.model.CNode;
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.ACLRuleConfig;
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.EnvironmentGroupConfig;
+import java.util.List;
+import org.junit.Rule;
+import org.junit.Test;
+
+public class EnvironmentACLJCasCTest {
+
+    @Rule
+    public JenkinsConfiguredWithCodeRule r = new JenkinsConfiguredWithCodeRule();
+
+    @Test
+    @ConfiguredWithCode("configuration-as-code.yml")
+    public void testConfigurationAsCode() {
+        EnvironmentACLGlobalConfiguration config = EnvironmentACLGlobalConfiguration.get();
+        
+        // Test environment groups
+        List<EnvironmentGroupConfig> groups = config.getEnvironmentGroups();
+        assertNotNull("Environment groups should not be null", groups);
+        assertEquals("Should have 3 environment groups", 3, groups.size());
+        
+        // Test production group
+        EnvironmentGroupConfig prodGroup = config.getEnvironmentGroupByName("production");
+        assertNotNull("Production group should exist", prodGroup);
+        assertEquals("Production group should have 3 environments", 3, prodGroup.environments.size());
+        assertTrue("Production group should contain prod-us-east", 
+                   prodGroup.environments.contains("prod-us-east"));
+        assertEquals("Production group should have 2 SSH keys", 2, prodGroup.sshKeys.size());
+        
+        // Test ACL rules
+        List<ACLRuleConfig> rules = config.getAclRules();
+        assertNotNull("ACL rules should not be null", rules);
+        assertTrue("Should have at least 1 ACL rule", rules.size() > 0);
+        
+        // Test admin rule
+        ACLRuleConfig adminRule = rules.stream()
+                .filter(r -> "Admin Full Access".equals(r.name))
+                .findFirst()
+                .orElse(null);
+        assertNotNull("Admin rule should exist", adminRule);
+        assertEquals("Admin rule should be allow type", "allow", adminRule.type);
+        assertEquals("Admin rule should have priority 100", 100, adminRule.priority);
+        assertTrue("Admin rule should contain admin user", adminRule.users.contains("admin"));
+    }
+
+    @Test
+    @ConfiguredWithCode("configuration-as-code.yml")
+    public void testExportConfiguration() throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode yourAttribute = r.getUnclassifiedRoot(context).get("environmentACL");
+        
+        assertNotNull("environmentACL should be exported", yourAttribute);
+        
+        // Verify the export contains our configuration
+        CNode groups = yourAttribute.asMapping().get("environmentGroups");
+        assertNotNull("environmentGroups should be exported", groups);
+        
+        CNode rules = yourAttribute.asMapping().get("rules");
+        assertNotNull("rules should be exported", rules);
+    }
+
+    @Test
+    @ConfiguredWithCode("configuration-as-code.yml")
+    public void testEnvironmentAccess() {
+        EnvironmentACLChecker checker = new EnvironmentACLChecker();
+        
+        // Test admin access
+        boolean adminAccess = checker.hasAccess("admin", List.of(), "any-job", "prod-us-east");
+        assertTrue("Admin should have access to production", adminAccess);
+        
+        // Test developer access
+        List<String> devGroups = List.of("developers");
+        boolean devProdAccess = checker.hasAccess("developer1", devGroups, "deploy-job", "prod-us-east");
+        assertFalse("Developers should not have access to production", devProdAccess);
+        
+        boolean devDevAccess = checker.hasAccess("developer1", devGroups, "deploy-job", "dev-01");
+        assertTrue("Developers should have access to development", devDevAccess);
+    }
+}

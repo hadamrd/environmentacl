@@ -1,0 +1,87 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" 
+         xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  
+  <!-- This file goes in: src/main/resources/io/jenkins/plugins/environmentacl/model/EnvironmentACLConfig/ACLRuleConfig/config.jelly -->
+  
+  <f:entry title="Rule Name" field="name">
+    <f:textbox />
+  </f:entry>
+  
+  <f:entry title="Type" field="type">
+    <f:select>
+      <f:option value="allow">Allow</f:option>
+      <f:option value="deny">Deny</f:option>
+    </f:select>
+  </f:entry>
+  
+  <f:entry title="Priority" field="priority" 
+           description="Higher number = higher priority (0-1000)">
+    <f:number default="50" min="0" max="1000" />
+  </f:entry>
+  
+  <f:section title="Target Jobs">
+    <f:entry title="Job Patterns" field="jobs" 
+             description="Job names or patterns (* for all)">
+      <f:repeatableProperty field="jobs" noAddButton="false">
+        <f:entry title="">
+          <f:textbox field="value" default="*" />
+          <f:repeatableDeleteButton />
+        </f:entry>
+      </f:repeatableProperty>
+    </f:entry>
+  </f:section>
+  
+  <f:section title="Target Environments">
+    <f:entry title="Specific Environments" field="environments" 
+             description="Environment names (* for all)">
+      <f:repeatableProperty field="environments" noAddButton="false">
+        <f:entry title="">
+          <f:textbox field="value" />
+          <f:repeatableDeleteButton />
+        </f:entry>
+      </f:repeatableProperty>
+    </f:entry>
+    
+    <f:entry title="Environment Groups" field="envCategories" 
+             description="Apply to all environments in these groups">
+      <f:repeatableProperty field="envCategories" noAddButton="false">
+        <f:entry title="">
+          <f:textbox field="value" />
+          <f:repeatableDeleteButton />
+        </f:entry>
+      </f:repeatableProperty>
+    </f:entry>
+  </f:section>
+  
+  <f:section title="Users and Groups">
+    <f:entry title="Users" field="users" 
+             description="User IDs this rule applies to">
+      <f:repeatableProperty field="users" noAddButton="false">
+        <f:entry title="">
+          <f:textbox field="value" />
+          <f:repeatableDeleteButton />
+        </f:entry>
+      </f:repeatableProperty>
+    </f:entry>
+    
+    <f:entry title="Groups" field="groups" 
+             description="LDAP/Security groups this rule applies to">
+      <f:repeatableProperty field="groups" noAddButton="false">
+        <f:entry title="">
+          <f:textbox field="value" />
+          <f:repeatableDeleteButton />
+        </f:entry>
+      </f:repeatableProperty>
+    </f:entry>
+  </f:section>
+  
+  <f:entry title="">
+    <div align="right">
+      <f:validateButton title="Validate Rule" progress="Validating..." 
+                       method="validateRule" with="name,type,priority" />
+      <f:repeatableDeleteButton />
+    </div>
+  </f:entry>
+  
+</j:jelly>

@@ -152,10 +152,11 @@
       <artifactId>snakeyaml</artifactId>
       <version>${snakeyaml.version}</version>
     </dependency>
+    <!-- Configuration as Code support (optional dependency) -->
     <dependency>
-      <groupId>io.jenkins</groupId>
-      <artifactId>configuration-as-code</artifactId>
-      <scope>test</scope>
+        <groupId>io.jenkins</groupId>
+        <artifactId>configuration-as-code</artifactId>
+        <optional>true</optional> <!-- Make it optional so users can choose to use it -->
     </dependency>
 
     <!-- Test dependencies -->
@@ -168,6 +169,12 @@
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>role-strategy</artifactId>
       <scope>test</scope>
+    </dependency>
+    <!-- For testing JCasC -->
+    <dependency>
+        <groupId>io.jenkins.configuration-as-code</groupId>
+        <artifactId>test-harness</artifactId>
+        <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -214,6 +221,7 @@
         <configuration>
           <compatibleSinceVersion>${jenkins.version}</compatibleSinceVersion>
           <systemProperties>
+            <casc.jenkins.config>${project.basedir}/src/test/resources/jcasc.yml</casc.jenkins.config>
             <!-- Development mode settings -->
             <jenkins.install.runSetupWizard>false</jenkins.install.runSetupWizard>
             <hudson.model.ParametersAction.keepUndefinedParameters>false</hudson.model.ParametersAction.keepUndefinedParameters>
