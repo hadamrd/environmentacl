@@ -8,6 +8,8 @@ jenkins:
       users:
         - id: "testuser"
           password: "testpass"
+        - id: "sre"
+          password: "sre123"
 
   authorizationStrategy:
     globalMatrix:
@@ -21,6 +23,10 @@ jenkins:
               - "Job/Read"
               - "Job/Configure"
         - user:
-            name: "SYSTEM"
+            name: "sre"
             permissions:
               - "Overall/Administer"
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Read"
+              - "Job/Configure"

@@ -39,7 +39,6 @@ public class EnvironmentACLStepExecution extends SynchronousNonBlockingStepExecu
         
         // Get the actual user who triggered the build
         String userId = null;
-        List<String> userGroups = new ArrayList<>();
         
         // Try to get user from build cause
         Cause.UserIdCause userCause = run.getCause(Cause.UserIdCause.class);
@@ -47,8 +46,8 @@ public class EnvironmentACLStepExecution extends SynchronousNonBlockingStepExecu
         
         // Get user object and impersonate to get groups
         User user = Jenkins.get().getUser(userId);
-        userGroups = user.getAuthorities();
-        
+        var userGroups = user.getAuthorities();
+
         // If still no user, this might be a system/automated trigger
         if (userId == null || "SYSTEM".equals(userId)) {
             listener.getLogger().println("Warning: Build triggered by system, not a user. Using SYSTEM context.");

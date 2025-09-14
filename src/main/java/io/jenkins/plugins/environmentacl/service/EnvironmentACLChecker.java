@@ -37,12 +37,6 @@ public class EnvironmentACLChecker {
         return false; // Default deny
     }
 
-    public List<String> getAccessibleEnvironments(String userId, List<String> userGroups, String jobName) {
-        return config.getAllEnvironments().stream()
-                .filter(env -> hasAccess(userId, userGroups, jobName, env))
-                .collect(Collectors.toList());
-    }
-
     private boolean matchesRule(ACLRule rule, String userId, List<String> userGroups, String jobName, String environment) {
         return matchesJob(rule, jobName) && 
                matchesEnvironment(rule, environment) && 
@@ -82,5 +76,20 @@ public class EnvironmentACLChecker {
         // Check group match
         return rule.getGroups().stream().anyMatch(group -> 
             "*".equals(group) || userGroups.contains(group));
+    }
+
+    public List<String> getAccessibleEnvironments(String userId, List<String> userGroups, String jobName) {
+        List<String> allEnvironments = config.getAllEnvironments();
+        return allEnvironments.stream()
+                .filter(env -> hasAccess(userId, userGroups, jobName, env))
+                .collect(Collectors.toList());
+    }
+
+    public List<String> getAccessibleEnvironmentGroups(String userId, List<String> userGroups, String jobName) {
+        return config.getEnvironmentGroups().stream()
+                .filter(group -> group.getEnvironments().stream()
+                        .anyMatch(env -> hasAccess(userId, userGroups, jobName, env)))
+                .map(group -> group.getName())
+                .collect(Collectors.toList());
     }
 }
