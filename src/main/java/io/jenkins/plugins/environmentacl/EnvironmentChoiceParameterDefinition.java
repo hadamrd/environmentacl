@@ -3,8 +3,10 @@ package io.jenkins.plugins.environmentacl;
 import hudson.Extension;
 import hudson.model.*;
 import hudson.util.ListBoxModel;
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.EnvironmentGroupConfig;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
+
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -12,8 +14,10 @@ import org.kohsuke.stapler.StaplerRequest;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -108,7 +112,7 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
             }
             
         } catch (Exception e) {
-            LOGGER.severe("Error populating environment choices: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Error populating environment choices: {0}", e.getMessage());
             addAllEnvironments(items); // Fallback to all environments
         }
         
@@ -129,12 +133,12 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
         }
         
         EnvironmentACLGlobalConfiguration config = EnvironmentACLGlobalConfiguration.get();
-        EnvironmentGroup group = config.getEnvironmentGroupByName(environmentGroupFilter);
+        EnvironmentGroupConfig group = config.getEnvironmentGroupByName(environmentGroupFilter);
         
         if (group != null) {
             // Filter to only environments in the specified group
             return environments.stream()
-                    .filter(env -> group.getEnvironments().contains(env))
+                    .filter(env -> group.environments.contains(env))
                     .collect(Collectors.toList());
         }
         

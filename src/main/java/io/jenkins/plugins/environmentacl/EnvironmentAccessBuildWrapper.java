@@ -5,6 +5,7 @@ import hudson.Launcher;
 import hudson.model.*;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrapperDescriptor;
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.EnvironmentGroupConfig;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
@@ -48,10 +49,10 @@ public class EnvironmentAccessBuildWrapper extends BuildWrapper {
                         env.put("ENVIRONMENT_SSH_KEYS", String.join(",", sshKeys));
                         env.put("ENVIRONMENT_VAULT_KEYS", String.join(",", vaultKeys));
                         
-                        EnvironmentGroup group = config.getEnvironmentGroupForEnvironment(environment);
+                        EnvironmentGroupConfig group = config.getEnvironmentGroupForEnvironment(environment);
                         if (group != null) {
-                            env.put("ENVIRONMENT_GROUP", group.getName());
-                            env.put("ENVIRONMENT_NODE_LABELS", String.join(",", group.getNodeLabels()));
+                            env.put("ENVIRONMENT_GROUP", group.name);
+                            env.put("ENVIRONMENT_NODE_LABELS", String.join(",", group.nodeLabels));
                         }
                     }
                 };
@@ -74,8 +75,5 @@ public class EnvironmentAccessBuildWrapper extends BuildWrapper {
         public String getDisplayName() {
             return "Environment Access Control";
         }
-        
-        // This would be populated with available environment parameters in the job
-        // For now, returning empty - in a real implementation, you'd introspect the job's parameters
     }
 }

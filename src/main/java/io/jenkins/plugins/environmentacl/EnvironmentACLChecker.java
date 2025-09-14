@@ -1,10 +1,13 @@
 package io.jenkins.plugins.environmentacl;
 
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.ACLRuleConfig;
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.EnvironmentGroupConfig;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Utility class for checking permissions against ACL rules
+ * Utility class for checking permissions against ACL rules using Jackson POJOs directly
  */
 public class EnvironmentACLChecker {
     
@@ -18,21 +21,21 @@ public class EnvironmentACLChecker {
      * Check if a user has access to a specific job and environment
      */
     public boolean hasAccess(String userId, List<String> userGroups, String jobName, String environment) {
-        List<ACLRule> rules = config.getAclRules();
+        List<ACLRuleConfig> rules = config.getAclRules();
         
         // Sort rules by priority (higher priority first)
-        rules.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
+        rules.sort((a, b) -> Integer.compare(b.priority, a.priority));
         
         // Check for explicit deny rules first
-        for (ACLRule rule : rules) {
-            if (rule.isDeny() && matchesRule(rule, userId, userGroups, jobName, environment)) {
+        for (ACLRuleConfig rule : rules) {
+            if ("deny".equalsIgnoreCase(rule.type) && matchesRule(rule, userId, userGroups, jobName, environment)) {
                 return false;
             }
         }
         
         // Check for allow rules
-        for (ACLRule rule : rules) {
-            if (rule.isAllow() && matchesRule(rule, userId, userGroups, jobName, environment)) {
+        for (ACLRuleConfig rule : rules) {
+            if ("allow".equalsIgnoreCase(rule.type) && matchesRule(rule, userId, userGroups, jobName, environment)) {
                 return true;
             }
         }
@@ -50,9 +53,9 @@ public class EnvironmentACLChecker {
                 .collect(Collectors.toList());
     }
     
-    private boolean matchesRule(ACLRule rule, String userId, List<String> userGroups, String jobName, String environment) {
+    private boolean matchesRule(ACLRuleConfig rule, String userId, List<String> userGroups, String jobName, String environment) {
         // Check job match
-        if (!rule.getJobs().contains("*") && !rule.getJobs().contains(jobName)) {
+        if (!rule.jobs.contains("*") && !rule.jobs.contains(jobName)) {
             return false;
         }
         
@@ -65,31 +68,31 @@ public class EnvironmentACLChecker {
         return matchesUserOrGroup(rule, userId, userGroups);
     }
     
-    private boolean matchesEnvironment(ACLRule rule, String environment) {
+    private boolean matchesEnvironment(ACLRuleConfig rule, String environment) {
         // Direct environment match
-        if (rule.getEnvironments().contains("*") || rule.getEnvironments().contains(environment)) {
+        if (rule.environments.contains("*") || rule.environments.contains(environment)) {
             return true;
         }
         
         // Category match
-        if (!rule.getEnvCategories().isEmpty()) {
-            EnvironmentGroup group = config.getEnvironmentGroupForEnvironment(environment);
+        if (!rule.envCategories.isEmpty()) {
+            EnvironmentGroupConfig group = config.getEnvironmentGroupForEnvironment(environment);
             if (group != null) {
-                return rule.getEnvCategories().contains("*") || 
-                       rule.getEnvCategories().contains(group.getName());
+                return rule.envCategories.contains("*") || 
+                       rule.envCategories.contains(group.name);
             }
         }
         
         return false;
     }
     
-    private boolean matchesUserOrGroup(ACLRule rule, String userId, List<String> userGroups) {
+    private boolean matchesUserOrGroup(ACLRuleConfig rule, String userId, List<String> userGroups) {
         // Check user match
-        if (rule.getUsers().contains(userId)) {
+        if (rule.users.contains(userId)) {
             return true;
         }
         
         // Check group match
-        return rule.getGroups().stream().anyMatch(userGroups::contains);
+        return rule.groups.stream().anyMatch(userGroups::contains);
     }
 }

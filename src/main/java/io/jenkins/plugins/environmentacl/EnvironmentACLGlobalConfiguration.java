@@ -1,17 +1,17 @@
 package io.jenkins.plugins.environmentacl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import hudson.Extension;
-import hudson.model.ManagementLink;
-import hudson.security.Permission;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig;
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.EnvironmentGroupConfig;
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.ACLRuleConfig;
 import jenkins.model.GlobalConfiguration;
-import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.verb.POST;
-import org.yaml.snakeyaml.Yaml;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -19,42 +19,43 @@ import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+/**
+ * Global configuration for Environment ACL Manager using Jackson POJOs directly
+ */
 @Extension
 public class EnvironmentACLGlobalConfiguration extends GlobalConfiguration {
     
     private static final Logger LOGGER = Logger.getLogger(EnvironmentACLGlobalConfiguration.class.getName());
+    private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
     
-    private List<EnvironmentGroup> environmentGroups = new ArrayList<>();
-    private List<ACLRule> aclRules = new ArrayList<>();
+    private EnvironmentACLConfig config = new EnvironmentACLConfig();
     private String yamlConfiguration = "";
     
     public EnvironmentACLGlobalConfiguration() {
         load();
     }
     
+    /**
+     * Get the singleton instance of this configuration
+     */
     @Nonnull
     public static EnvironmentACLGlobalConfiguration get() {
         EnvironmentACLGlobalConfiguration config = GlobalConfiguration.all().get(EnvironmentACLGlobalConfiguration.class);
         if (config == null) {
-            throw new IllegalStateException("EnvironmentACLGlobalConfiguration not found");
+            config = new EnvironmentACLGlobalConfiguration();
+            GlobalConfiguration.all().add(config);
         }
         return config;
     }
     
-    public List<EnvironmentGroup> getEnvironmentGroups() {
-        return environmentGroups;
+    // ========== Getters and Setters ==========
+    
+    public List<EnvironmentGroupConfig> getEnvironmentGroups() {
+        return config.environmentGroups;
     }
     
-    public void setEnvironmentGroups(List<EnvironmentGroup> environmentGroups) {
-        this.environmentGroups = environmentGroups != null ? environmentGroups : new ArrayList<>();
-    }
-    
-    public List<ACLRule> getAclRules() {
-        return aclRules;
-    }
-    
-    public void setAclRules(List<ACLRule> aclRules) {
-        this.aclRules = aclRules != null ? aclRules : new ArrayList<>();
+    public List<ACLRuleConfig> getAclRules() {
+        return config.rules;
     }
     
     public String getYamlConfiguration() {
@@ -64,6 +65,8 @@ public class EnvironmentACLGlobalConfiguration extends GlobalConfiguration {
     public void setYamlConfiguration(String yamlConfiguration) {
         this.yamlConfiguration = yamlConfiguration != null ? yamlConfiguration : "";
     }
+    
+    // ========== Configuration Management ==========
     
     @Override
     public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
@@ -83,145 +86,104 @@ public class EnvironmentACLGlobalConfiguration extends GlobalConfiguration {
         }
     }
     
-    @SuppressWarnings("unchecked")
-    private void parseYamlConfiguration(String yamlContent) throws FormException {
+    /**
+     * Parse YAML configuration using Jackson directly - no more duplication!
+     */
+    public void parseYamlConfiguration(String yamlContent) throws FormException {
         try {
-            Yaml yaml = new Yaml();
-            Map<String, Object> config = yaml.load(yamlContent);
-            
-            // Parse environment groups
-            List<EnvironmentGroup> newGroups = new ArrayList<>();
-            if (config.containsKey("environmentGroups")) {
-                List<Map<String, Object>> groups = (List<Map<String, Object>>) config.get("environmentGroups");
-                for (Map<String, Object> groupData : groups) {
-                    EnvironmentGroup group = parseEnvironmentGroup(groupData);
-                    newGroups.add(group);
-                }
+            if (yamlContent == null || yamlContent.trim().isEmpty()) {
+                this.config = new EnvironmentACLConfig();
+                return;
             }
             
-            // Parse ACL rules
-            List<ACLRule> newRules = new ArrayList<>();
-            if (config.containsKey("rules")) {
-                List<Map<String, Object>> rules = (List<Map<String, Object>>) config.get("rules");
-                for (Map<String, Object> ruleData : rules) {
-                    ACLRule rule = parseACLRule(ruleData);
-                    newRules.add(rule);
-                }
-            }
-            
-            this.environmentGroups = newGroups;
-            this.aclRules = newRules;
+            // That's it - one line!
+            this.config = YAML_MAPPER.readValue(yamlContent, EnvironmentACLConfig.class);
             
         } catch (Exception e) {
-            throw new FormException("Invalid YAML configuration: " + e.getMessage(), "yamlConfiguration");
+            throw new FormException("Invalid YAML: " + e.getMessage(), "yamlConfiguration");
         }
     }
     
-    @SuppressWarnings("unchecked")
-    private EnvironmentGroup parseEnvironmentGroup(Map<String, Object> data) {
-        String name = (String) data.get("name");
-        String description = (String) data.get("description");
-        List<String> environments = (List<String>) data.getOrDefault("environments", new ArrayList<>());
-        List<String> sshKeyIds = (List<String>) data.getOrDefault("sshKeys", new ArrayList<>());
-        List<String> vaultKeyIds = (List<String>) data.getOrDefault("vaultKeys", new ArrayList<>());
-        List<String> nodeLabels = (List<String>) data.getOrDefault("nodeLabels", new ArrayList<>());
-        
-        return new EnvironmentGroup(name, description, environments, sshKeyIds, vaultKeyIds, nodeLabels);
-    }
+    // ========== Validation ==========
     
-    @SuppressWarnings("unchecked")
-    private ACLRule parseACLRule(Map<String, Object> data) {
-        String name = (String) data.get("name");
-        String type = (String) data.get("type");
-        int priority = ((Number) data.getOrDefault("priority", 0)).intValue();
-        List<String> jobs = (List<String>) data.getOrDefault("jobs", new ArrayList<>());
-        List<String> environments = (List<String>) data.getOrDefault("environments", new ArrayList<>());
-        List<String> envCategories = (List<String>) data.getOrDefault("envCategories", new ArrayList<>());
-        List<String> users = (List<String>) data.getOrDefault("users", new ArrayList<>());
-        List<String> groups = (List<String>) data.getOrDefault("groups", new ArrayList<>());
-        
-        return new ACLRule(name, type, priority, jobs, environments, envCategories, users, groups);
-    }
-    
-    public FormValidation doCheckYamlConfiguration(@QueryParameter String value) {
-        if (value == null || value.trim().isEmpty()) {
+    @POST
+    public FormValidation doCheckYamlConfiguration(@QueryParameter String yamlConfiguration) {
+        if (yamlConfiguration == null || yamlConfiguration.trim().isEmpty()) {
             return FormValidation.warning("YAML configuration is empty");
         }
         
         try {
-            parseYamlConfiguration(value);
+            parseYamlConfiguration(yamlConfiguration);
             return FormValidation.ok("YAML configuration is valid");
         } catch (Exception e) {
             return FormValidation.error("Invalid YAML: " + e.getMessage());
         }
     }
     
-    // API methods for other components
+    // ========== API Methods for Other Components ==========
+    
+    /**
+     * Get all environments from all groups
+     */
     public List<String> getAllEnvironments() {
-        return environmentGroups.stream()
-                .flatMap(group -> group.getEnvironments().stream())
+        return config.environmentGroups.stream()
+                .flatMap(group -> group.environments.stream())
                 .distinct()
                 .collect(Collectors.toList());
     }
     
+    /**
+     * Get all environment group names
+     */
     public List<String> getAllEnvironmentGroups() {
-        return environmentGroups.stream()
-                .map(EnvironmentGroup::getName)
+        return config.environmentGroups.stream()
+                .map(group -> group.name)
                 .collect(Collectors.toList());
     }
     
+    /**
+     * Find environment group by name
+     */
     @CheckForNull
-    public EnvironmentGroup getEnvironmentGroupByName(String name) {
-        return environmentGroups.stream()
-                .filter(group -> group.getName().equals(name))
+    public EnvironmentGroupConfig getEnvironmentGroupByName(String name) {
+        return config.environmentGroups.stream()
+                .filter(group -> group.name.equals(name))
                 .findFirst()
                 .orElse(null);
     }
     
+    /**
+     * Find environment group that contains the specified environment
+     */
     @CheckForNull
-    public EnvironmentGroup getEnvironmentGroupForEnvironment(String environment) {
-        return environmentGroups.stream()
-                .filter(group -> group.getEnvironments().contains(environment))
+    public EnvironmentGroupConfig getEnvironmentGroupForEnvironment(String environment) {
+        return config.environmentGroups.stream()
+                .filter(group -> group.environments.contains(environment))
                 .findFirst()
                 .orElse(null);
     }
     
+    /**
+     * Get SSH key IDs for a specific environment
+     */
     public List<String> getSshKeysForEnvironment(String environment) {
-        EnvironmentGroup group = getEnvironmentGroupForEnvironment(environment);
-        return group != null ? new ArrayList<>(group.getSshKeyIds()) : new ArrayList<>();
+        EnvironmentGroupConfig group = getEnvironmentGroupForEnvironment(environment);
+        return group != null ? new ArrayList<>(group.sshKeys) : new ArrayList<>();
     }
     
+    /**
+     * Get vault key IDs for a specific environment
+     */
     public List<String> getVaultKeysForEnvironment(String environment) {
-        EnvironmentGroup group = getEnvironmentGroupForEnvironment(environment);
-        return group != null ? new ArrayList<>(group.getVaultKeyIds()) : new ArrayList<>();
+        EnvironmentGroupConfig group = getEnvironmentGroupForEnvironment(environment);
+        return group != null ? new ArrayList<>(group.vaultKeys) : new ArrayList<>();
     }
     
-    @Extension
-    public static class EnvironmentACLManagementLink extends ManagementLink {
-        
-        @Override
-        public String getIconFileName() {
-            return "symbol-folder-outline";
-        }
-        
-        @Override
-        public String getDisplayName() {
-            return "Environment ACL Manager";
-        }
-        
-        @Override
-        public String getUrlName() {
-            return "environment-acl";
-        }
-        
-        @Override
-        public String getDescription() {
-            return "Manage environment groups and access control rules";
-        }
-        
-        @Override
-        public Permission getRequiredPermission() {
-            return Jenkins.ADMINISTER;
-        }
+    /**
+     * Get node labels for a specific environment
+     */
+    public List<String> getNodeLabelsForEnvironment(String environment) {
+        EnvironmentGroupConfig group = getEnvironmentGroupForEnvironment(environment);
+        return group != null ? new ArrayList<>(group.nodeLabels) : new ArrayList<>();
     }
 }

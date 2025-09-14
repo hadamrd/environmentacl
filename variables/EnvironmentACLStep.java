@@ -1,21 +1,25 @@
 package io.jenkins.plugins.environmentacl;
 
-import hudson.Extension;
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.model.Run;
-import hudson.model.TaskListener;
-import hudson.model.User;
-import org.jenkinsci.plugins.workflow.steps.*;
-import org.kohsuke.stapler.DataBoundConstructor;
-
-import javax.annotation.Nonnull;
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.annotation.Nonnull;
+
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution;
+import org.kohsuke.stapler.DataBoundConstructor;
+
+import hudson.Extension;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.model.User;
+import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.EnvironmentGroupConfig;
 
 /**
  * Pipeline step for checking environment access and getting environment information
@@ -93,10 +97,10 @@ public class EnvironmentACLStep extends Step {
                     envInfo.put("sshKeys", config.getSshKeysForEnvironment(step.getEnvironment()));
                     envInfo.put("vaultKeys", config.getVaultKeysForEnvironment(step.getEnvironment()));
                     
-                    EnvironmentGroup group = config.getEnvironmentGroupForEnvironment(step.getEnvironment());
+                    EnvironmentGroupConfig group = config.getEnvironmentGroupForEnvironment(step.getEnvironment());
                     if (group != null) {
-                        envInfo.put("group", group.getName());
-                        envInfo.put("nodeLabels", group.getNodeLabels());
+                        envInfo.put("group", group.name);
+                        envInfo.put("nodeLabels", group.nodeLabels);
                     }
                     
                     return envInfo;
@@ -136,7 +140,7 @@ public class EnvironmentACLStep extends Step {
 /**
  * Pipeline step to get environment credentials
  */
-public class GetEnvironmentCredentialsStep extends Step {
+class GetEnvironmentCredentialsStep extends Step {
     
     private final String environment;
     private final String credentialType;

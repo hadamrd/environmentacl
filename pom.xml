@@ -136,13 +136,16 @@
             <artifactId>jackson-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.yaml</groupId>
@@ -210,7 +213,6 @@
                 <extensions>true</extensions>
                 <configuration>
                     <compatibleSinceVersion>${jenkins.version}</compatibleSinceVersion>
-                    <minimumJavaVersion>21</minimumJavaVersion>
                     <systemProperties>
                         <!-- Development mode settings -->
                         <jenkins.install.runSetupWizard>false</jenkins.install.runSetupWizard>
@@ -227,9 +229,6 @@
                         <!-- Security settings for development -->
                         <hudson.model.DirectoryBrowserSupport.CSP>default-src 'self'; style-src 'self' 'unsafe-inline';</hudson.model.DirectoryBrowserSupport.CSP>
                     </systemProperties>
-                    <environmentVariables>
-                        <JENKINS_HOME>${project.basedir}/work</JENKINS_HOME>
-                    </environmentVariables>
                     <webApp>
                         <contextPath>/</contextPath>
                     </webApp>
