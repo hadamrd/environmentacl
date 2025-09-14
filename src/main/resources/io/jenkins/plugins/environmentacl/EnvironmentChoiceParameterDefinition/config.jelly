@@ -1,0 +1,34 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  
+  <f:entry title="Name" field="name" description="Parameter name that will be available in your build">
+    <f:textbox />
+  </f:entry>
+  
+  <f:entry title="Description" field="description" description="Optional description for this parameter">
+    <f:textarea rows="3"/>
+  </f:entry>
+  
+  <f:entry title="Default Value" field="defaultValue" description="Default environment to select">
+    <f:textbox />
+  </f:entry>
+  
+  <f:entry title="Show Only Accessible Environments" field="showOnlyAccessible" 
+           description="If checked, only environments accessible to the current user will be shown based on ACL rules">
+    <f:checkbox />
+  </f:entry>
+  
+  <f:entry title="Environment Group Filter" field="environmentGroupFilter" 
+           description="Optional: Limit choices to environments from a specific group">
+    <f:select />
+  </f:entry>
+  
+  <f:entry>
+    <div style="background: #ffffcc; padding: 10px; margin: 10px 0; border-radius: 3px;">
+      <strong>Usage:</strong> This parameter type will automatically populate with environments 
+      based on the current user's permissions. When used in a pipeline, it will also set 
+      environment variables with the associated SSH keys, vault keys, and node labels.
+    </div>
+  </f:entry>
+  
+</j:jelly>

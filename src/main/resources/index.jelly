@@ -1,0 +1,6 @@
+<?jelly escape-by-default='true'?>
+<div>
+  This plugin provides environment group management with fine-grained access control for Jenkins pipelines.
+  It allows administrators to define logical groups of environments with associated credentials and 
+  implement ACL rules controlling who can access which environments and jobs.
+</div>
