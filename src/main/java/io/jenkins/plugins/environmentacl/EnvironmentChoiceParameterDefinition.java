@@ -1,12 +1,9 @@
 package io.jenkins.plugins.environmentacl;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import javax.annotation.Nonnull;
 
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -20,7 +17,6 @@ import hudson.model.StringParameterValue;
 import hudson.model.User;
 import hudson.util.ListBoxModel;
 import io.jenkins.plugins.environmentacl.model.EnvironmentACLConfig.EnvironmentGroupConfig;
-import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
 /** Custom parameter definition that shows only environments accessible to the current user */
@@ -39,7 +35,7 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
             String defaultValue,
             boolean showOnlyAccessible,
             String environmentGroupFilter) {
-        super(name, description);
+        super(name);
         this.defaultValue = defaultValue;
         this.showOnlyAccessible = showOnlyAccessible;
         this.environmentGroupFilter = environmentGroupFilter;
@@ -68,11 +64,13 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
         return new StringParameterValue(getName(), str, getDescription());
     }
 
+    @Override
     public ParameterValue createValue(StaplerRequest req) {
         String value = req.getParameter(getName());
         return new StringParameterValue(getName(), value, getDescription());
     }
 
+    @Override
     public ParameterValue getDefaultParameterValue() {
         return new StringParameterValue(getName(), defaultValue, getDescription());
     }
@@ -149,25 +147,7 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
     }
 
     private List<String> getUserGroups(User user) {
-        List<String> groups = new ArrayList<>();
-
-        try {
-            // Try to get groups from security realm
-            Jenkins jenkins = Jenkins.get();
-            if (jenkins.getSecurityRealm() != null) {
-                // This is a simplified approach - you might need to adapt based on your security setup
-                hudson.security.SecurityRealm realm = jenkins.getSecurityRealm();
-                // Add logic to extract groups based on your security realm
-            }
-
-            // Fallback: try to get groups from user properties or external systems
-            // This is where you'd integrate with LDAP, AD, or other group providers
-
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Could not retrieve user groups for {0}: {1}", new Object[]{user.getId(), e.getMessage()});
-        }
-
-        return groups;
+        return user.getAuthorities();
     }
 
     private String getCurrentJobName() {
@@ -200,7 +180,6 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
     @Symbol("environmentChoice")
     public static class DescriptorImpl extends ParameterDescriptor {
 
-        @Nonnull
         @Override
         public String getDisplayName() {
             return "Environment Choice Parameter";
