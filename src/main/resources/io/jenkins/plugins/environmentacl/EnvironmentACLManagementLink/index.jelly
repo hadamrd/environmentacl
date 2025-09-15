@@ -2,90 +2,174 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" 
          xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   
-  <!-- This is the ONLY UI for the plugin - no duplication! -->
   <l:layout title="Environment ACL Manager" permission="${app.ADMINISTER}">
     <l:header />
 
     <l:main-panel>
       <h1>Environment ACL Manager</h1>
+      <p>Current configuration imported from Configuration as Code (JCasC)</p>
       
-      <!-- Current Configuration Display -->
       <j:set var="config" value="${it.configuration}" />
       
-      <j:if test="${!config.environmentGroups.isEmpty() or !config.rules.isEmpty()}">
-        <f:section title="Current Configuration">
-          
-          <!-- Environment Groups -->
-          <j:if test="${!config.environmentGroups.isEmpty()}">
-            <h3>Environment Groups (${config.environmentGroups.size()})</h3>
-            <table class="jenkins-table">
+      <!-- Environment Groups Section -->
+      <f:section title="Environment Groups">
+        <j:choose>
+          <j:when test="${!config.environmentGroups.isEmpty()}">
+            <table class="jenkins-table sortable">
               <thead>
                 <tr>
-                  <th>Group</th>
+                  <th>Group Name</th>
+                  <th>Description</th>
                   <th>Environments</th>
-                  <th>SSH Keys</th>
-                  <th>Vault Keys</th>
+                  <th>SSH Credential</th>
+                  <th>Vault Credentials</th>
                 </tr>
               </thead>
               <tbody>
                 <j:forEach var="group" items="${config.environmentGroups}">
                   <tr>
                     <td><strong>${group.name}</strong></td>
-                    <td>${group.environments.join(', ')}</td>
-                    <td>${group.sshKeys.join(', ')}</td>
-                    <td>${group.vaultKeys.join(', ')}</td>
+                    <td>${group.description}</td>
+                    <td>
+                      <j:forEach var="env" items="${group.environments}" varStatus="envLoop">
+                        <span class="jenkins-label">${env}</span>
+                        <j:if test="${!envLoop.last}">, </j:if>
+                      </j:forEach>
+                    </td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${group.sshCredentialId != null}">
+                          <code>${group.sshCredentialId}</code>
+                        </j:when>
+                        <j:otherwise>
+                          <em>None</em>
+                        </j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${!group.vaultCredentials.isEmpty()}">
+                          <j:forEach var="vault" items="${group.vaultCredentials}" varStatus="vaultLoop">
+                            <div style="margin-bottom: 2px;">
+                              <strong>${vault.vaultId}:</strong> <code>${vault.credentialId}</code>
+                              <j:if test="${vault.description != null}">
+                                <br/><small style="color: #666;">${vault.description}</small>
+                              </j:if>
+                            </div>
+                          </j:forEach>
+                        </j:when>
+                        <j:otherwise>
+                          <em>None</em>
+                        </j:otherwise>
+                      </j:choose>
+                    </td>
                   </tr>
                 </j:forEach>
               </tbody>
             </table>
-          </j:if>
-          
-          <!-- ACL Rules -->
-          <j:if test="${!config.rules.isEmpty()}">
-            <h3>ACL Rules (${config.rules.size()})</h3>
-            <table class="jenkins-table">
+          </j:when>
+          <j:otherwise>
+            <div class="jenkins-alert jenkins-alert-info">
+              <p>No environment groups configured. Add them via Configuration as Code (JCasC).</p>
+            </div>
+          </j:otherwise>
+        </j:choose>
+      </f:section>
+      
+      <!-- ACL Rules Section -->
+      <f:section title="Access Control Rules">
+        <j:choose>
+          <j:when test="${!config.aclRules.isEmpty()}">
+            <table class="jenkins-table sortable">
               <thead>
                 <tr>
-                  <th>Rule</th>
+                  <th>Rule Name</th>
                   <th>Type</th>
                   <th>Priority</th>
                   <th>Jobs</th>
-                  <th>Targets</th>
+                  <th>Environments</th>
+                  <th>Environment Groups</th>
+                  <th>Users</th>
+                  <th>Groups</th>
                 </tr>
               </thead>
               <tbody>
-                <j:forEach var="rule" items="${config.rules}">
+                <j:forEach var="rule" items="${config.aclRules}">
                   <tr>
                     <td><strong>${rule.name}</strong></td>
                     <td>
                       <j:choose>
                         <j:when test="${rule.type == 'allow'}">
-                          <span style="color:green">✓ ${rule.type}</span>
+                          <span class="jenkins-label jenkins-label-success">✓ Allow</span>
                         </j:when>
                         <j:otherwise>
-                          <span style="color:red">✗ ${rule.type}</span>
+                          <span class="jenkins-label jenkins-label-error">✗ Deny</span>
                         </j:otherwise>
                       </j:choose>
                     </td>
                     <td>${rule.priority}</td>
-                    <td>${rule.jobs.join(', ')}</td>
                     <td>
-                      <j:if test="${!rule.users.isEmpty()}">
-                        Users: ${rule.users.join(', ')}
-                      </j:if>
-                      <j:if test="${!rule.groups.isEmpty()}">
-                        <j:if test="${!rule.users.isEmpty()}"><br/></j:if>
-                        Groups: ${rule.groups.join(', ')}
-                      </j:if>
+                      <j:choose>
+                        <j:when test="${!rule.jobs.isEmpty()}">
+                          <j:forEach var="job" items="${rule.jobs}" varStatus="jobLoop">
+                            <code>${job}</code><j:if test="${!jobLoop.last}">, </j:if>
+                          </j:forEach>
+                        </j:when>
+                        <j:otherwise><em>None</em></j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${!rule.environments.isEmpty()}">
+                          <j:forEach var="env" items="${rule.environments}" varStatus="envLoop">
+                            <span class="jenkins-label">${env}</span><j:if test="${!envLoop.last}">, </j:if>
+                          </j:forEach>
+                        </j:when>
+                        <j:otherwise><em>None</em></j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${!rule.environmentGroups.isEmpty()}">
+                          <j:forEach var="envGroup" items="${rule.environmentGroups}" varStatus="groupLoop">
+                            <span class="jenkins-label">${envGroup}</span><j:if test="${!groupLoop.last}">, </j:if>
+                          </j:forEach>
+                        </j:when>
+                        <j:otherwise><em>None</em></j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${!rule.users.isEmpty()}">
+                          <j:forEach var="user" items="${rule.users}" varStatus="userLoop">
+                            <code>${user}</code><j:if test="${!userLoop.last}">, </j:if>
+                          </j:forEach>
+                        </j:when>
+                        <j:otherwise><em>None</em></j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${!rule.groups.isEmpty()}">
+                          <j:forEach var="group" items="${rule.groups}" varStatus="groupLoop">
+                            <code>${group}</code><j:if test="${!groupLoop.last}">, </j:if>
+                          </j:forEach>
+                        </j:when>
+                        <j:otherwise><em>None</em></j:otherwise>
+                      </j:choose>
                     </td>
                   </tr>
                 </j:forEach>
               </tbody>
             </table>
-          </j:if>
-          
-        </f:section>
-      </j:if>
+          </j:when>
+          <j:otherwise>
+            <div class="jenkins-alert jenkins-alert-info">
+              <p>No ACL rules configured. Add them via Configuration as Code (JCasC).</p>
+            </div>
+          </j:otherwise>
+        </j:choose>
+      </f:section>
       
     </l:main-panel>
   </l:layout>
