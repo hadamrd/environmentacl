@@ -9,41 +9,6 @@
     <l:main-panel>
       <h1>Environment ACL Manager</h1>
       
-      <!-- Show any errors/success -->
-      <j:if test="${request.getParameter('error') != null}">
-        <div style="background: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 5px;">
-          ⚠️ ${request.getParameter('error')}
-        </div>
-      </j:if>
-      
-      <!-- Configuration Form -->
-      <f:form method="post" action="configSubmit" name="config">
-        <f:section title="Configuration">
-          
-          <div style="background: #e7f3ff; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
-            💡 <strong>Tip:</strong> This configuration also supports Jenkins Configuration as Code (JCasC). 
-            Use the Export button to get JCasC format.
-          </div>
-          
-          <f:entry title="YAML Configuration" 
-                   description="Define environment groups and ACL rules">
-            <f:textarea name="yamlConfiguration" 
-                       value="${it.currentYamlConfiguration}"
-                       style="width:100%; height:500px; font-family:monospace;"/>
-          </f:entry>
-          
-          <f:validateButton title="Validate YAML" 
-                           progress="Validating..." 
-                           method="checkYamlConfiguration" 
-                           with="yamlConfiguration"/>
-        </f:section>
-        
-        <f:bottomButtonBar>
-          <f:submit value="Save Configuration" />
-          <f:repeatableDeleteButton value="Export as JCasC" onclick="window.location='exportJCasC'; return false;" />
-        </f:bottomButtonBar>
-      </f:form>
-      
       <!-- Current Configuration Display -->
       <j:set var="config" value="${it.configuration}" />
       
