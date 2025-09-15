@@ -1,18 +1,16 @@
 package io.jenkins.plugins.environmentacl;
 
 import hudson.Extension;
-import jenkins.model.GlobalConfiguration;
-import org.jenkinsci.Symbol;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.StaplerRequest;
-import net.sf.json.JSONObject;
-
-import io.jenkins.plugins.environmentacl.model.EnvironmentGroup;
 import io.jenkins.plugins.environmentacl.model.ACLRule;
-
+import io.jenkins.plugins.environmentacl.model.EnvironmentGroup;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import jenkins.model.GlobalConfiguration;
+import net.sf.json.JSONObject;
+import org.jenkinsci.Symbol;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.StaplerRequest;
 
 @Extension
 @Symbol("environmentACL")

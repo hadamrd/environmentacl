@@ -17,9 +17,17 @@ public class VaultCredentialMapping extends AbstractDescribableImpl<VaultCredent
         this.credentialId = credentialId;
     }
 
-    public String getVaultId() { return vaultId; }
-    public String getCredentialId() { return credentialId; }
-    public String getDescription() { return description; }
+    public String getVaultId() {
+        return vaultId;
+    }
+
+    public String getCredentialId() {
+        return credentialId;
+    }
+
+    public String getDescription() {
+        return description;
+    }
 
     @DataBoundSetter
     public void setDescription(String description) {

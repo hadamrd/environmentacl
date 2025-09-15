@@ -2,7 +2,6 @@ package io.jenkins.plugins.environmentacl.step;
 
 import io.jenkins.plugins.environmentacl.model.EnvironmentGroup;
 import io.jenkins.plugins.environmentacl.service.CredentialService;
-
 import java.io.Serializable;
 import java.util.List;
 
@@ -13,9 +12,12 @@ public class EnvironmentAccessContext implements Serializable {
     private final String sshCredentialId;
     private final transient CredentialService credentialService;
 
-    public EnvironmentAccessContext(String environment, boolean hasAccess, 
-                                  EnvironmentGroup environmentGroup, String sshCredentialId,
-                                  CredentialService credentialService) {
+    public EnvironmentAccessContext(
+            String environment,
+            boolean hasAccess,
+            EnvironmentGroup environmentGroup,
+            String sshCredentialId,
+            CredentialService credentialService) {
         this.environment = environment;
         this.hasAccess = hasAccess;
         this.environmentGroup = environmentGroup;

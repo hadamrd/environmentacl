@@ -5,17 +5,15 @@ import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
 import hudson.model.User;
+import io.jenkins.plugins.environmentacl.service.EnvironmentACLChecker;
+import java.util.ArrayList;
+import java.util.List;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.springframework.security.core.Authentication;
-
-import io.jenkins.plugins.environmentacl.service.EnvironmentACLChecker;
-
-import java.util.List;
-import java.util.ArrayList;
 
 public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
 
@@ -42,16 +40,16 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
             // Get accessible environments
             EnvironmentACLChecker checker = new EnvironmentACLChecker();
             String currentJobName = getCurrentJobName();
-            
+
             List<String> accessibleEnvs = checker.getAccessibleEnvironments(userId, userGroups, currentJobName);
-            
+
             if (accessibleEnvs.isEmpty()) {
                 return List.of("(No environments accessible)");
             }
             System.out.println("getChoices() returning: " + accessibleEnvs);
-            
+
             return accessibleEnvs;
-            
+
         } catch (Exception e) {
             return List.of("(Error loading environments: " + e.getMessage() + ")");
         }
@@ -65,7 +63,7 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
                 System.out.println("=== REQUEST DEBUG ===");
                 System.out.println("Request URI: " + req.getRequestURI());
                 System.out.println("Request Method: " + req.getMethod());
-                
+
                 java.util.Enumeration<String> paramNames = req.getParameterNames();
                 while (paramNames.hasMoreElements()) {
                     String paramName = paramNames.nextElement();
@@ -100,17 +98,17 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
     @Override
     public ParameterValue createValue(StaplerRequest req, JSONObject jo) {
         String value = jo.optString("value", "");
-        
+
         if ("(No environments accessible)".equals(value) || value.startsWith("(Error")) {
             value = "";
         }
-        
+
         return new StringParameterValue(getName(), value, getDescription());
     }
 
     @Override
     public ParameterValue createValue(StaplerRequest req) {
-        String[] values = req.getParameterValues(getName());        
+        String[] values = req.getParameterValues(getName());
         String value = "";
         if (values != null && values.length > 0) {
             value = values[0];
@@ -119,7 +117,7 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
                 value = "";
             }
         }
-        
+
         return new StringParameterValue(getName(), value, getDescription());
     }
 

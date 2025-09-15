@@ -3,11 +3,10 @@ package io.jenkins.plugins.environmentacl.model;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 
 public class ACLRule extends AbstractDescribableImpl<ACLRule> {
     private String name;
@@ -33,24 +32,77 @@ public class ACLRule extends AbstractDescribableImpl<ACLRule> {
     }
 
     // Getters
-    public String getName() { return name; }
-    public String getType() { return type; }
-    public int getPriority() { return priority; }
-    public List<String> getJobs() { return jobs != null ? jobs : new ArrayList<>(); }
-    public List<String> getEnvironments() { return environments != null ? environments : new ArrayList<>(); }
-    public List<String> getEnvironmentGroups() { return environmentGroups != null ? environmentGroups : new ArrayList<>(); }
-    public List<String> getEnvironmentTags() { return environmentTags != null ? environmentTags : new ArrayList<>(); }
-    public List<String> getUsers() { return users != null ? users : new ArrayList<>(); }
-    public List<String> getGroups() { return groups != null ? groups : new ArrayList<>(); }
+    public String getName() {
+        return name;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public int getPriority() {
+        return priority;
+    }
+
+    public List<String> getJobs() {
+        return jobs != null ? jobs : new ArrayList<>();
+    }
+
+    public List<String> getEnvironments() {
+        return environments != null ? environments : new ArrayList<>();
+    }
+
+    public List<String> getEnvironmentGroups() {
+        return environmentGroups != null ? environmentGroups : new ArrayList<>();
+    }
+
+    public List<String> getEnvironmentTags() {
+        return environmentTags != null ? environmentTags : new ArrayList<>();
+    }
+
+    public List<String> getUsers() {
+        return users != null ? users : new ArrayList<>();
+    }
+
+    public List<String> getGroups() {
+        return groups != null ? groups : new ArrayList<>();
+    }
 
     // Setters
-    @DataBoundSetter public void setPriority(int priority) { this.priority = priority; }
-    @DataBoundSetter public void setJobs(List<String> jobs) { this.jobs = jobs != null ? jobs : new ArrayList<>(); }
-    @DataBoundSetter public void setEnvironments(List<String> environments) { this.environments = environments != null ? environments : new ArrayList<>(); }
-    @DataBoundSetter public void setEnvironmentGroups(List<String> environmentGroups) { this.environmentGroups = environmentGroups != null ? environmentGroups : new ArrayList<>(); }
-    @DataBoundSetter public void setEnvironmentTags(List<String> environmentTags) { this.environmentTags = environmentTags != null ? environmentTags : new ArrayList<>(); }
-    @DataBoundSetter public void setUsers(List<String> users) { this.users = users != null ? users : new ArrayList<>(); }
-    @DataBoundSetter public void setGroups(List<String> groups) { this.groups = groups != null ? groups : new ArrayList<>(); }
+    @DataBoundSetter
+    public void setPriority(int priority) {
+        this.priority = priority;
+    }
+
+    @DataBoundSetter
+    public void setJobs(List<String> jobs) {
+        this.jobs = jobs != null ? jobs : new ArrayList<>();
+    }
+
+    @DataBoundSetter
+    public void setEnvironments(List<String> environments) {
+        this.environments = environments != null ? environments : new ArrayList<>();
+    }
+
+    @DataBoundSetter
+    public void setEnvironmentGroups(List<String> environmentGroups) {
+        this.environmentGroups = environmentGroups != null ? environmentGroups : new ArrayList<>();
+    }
+
+    @DataBoundSetter
+    public void setEnvironmentTags(List<String> environmentTags) {
+        this.environmentTags = environmentTags != null ? environmentTags : new ArrayList<>();
+    }
+
+    @DataBoundSetter
+    public void setUsers(List<String> users) {
+        this.users = users != null ? users : new ArrayList<>();
+    }
+
+    @DataBoundSetter
+    public void setGroups(List<String> groups) {
+        this.groups = groups != null ? groups : new ArrayList<>();
+    }
 
     @Extension
     public static class DescriptorImpl extends Descriptor<ACLRule> {

@@ -3,7 +3,6 @@ package io.jenkins.plugins.environmentacl.service;
 import io.jenkins.plugins.environmentacl.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.environmentacl.model.ACLRule;
 import io.jenkins.plugins.environmentacl.model.EnvironmentGroup;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,20 +15,22 @@ public class EnvironmentACLChecker {
 
     public boolean hasAccess(String userId, List<String> userGroups, String jobName, String environment) {
         List<ACLRule> rules = config.getAclRules();
-        
+
         // Sort by priority (higher first)
         rules.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
 
         // Check deny rules first
         for (ACLRule rule : rules) {
-            if ("deny".equalsIgnoreCase(rule.getType()) && matchesRule(rule, userId, userGroups, jobName, environment)) {
+            if ("deny".equalsIgnoreCase(rule.getType())
+                    && matchesRule(rule, userId, userGroups, jobName, environment)) {
                 return false;
             }
         }
 
         // Check allow rules
         for (ACLRule rule : rules) {
-            if ("allow".equalsIgnoreCase(rule.getType()) && matchesRule(rule, userId, userGroups, jobName, environment)) {
+            if ("allow".equalsIgnoreCase(rule.getType())
+                    && matchesRule(rule, userId, userGroups, jobName, environment)) {
                 return true;
             }
         }
@@ -37,10 +38,11 @@ public class EnvironmentACLChecker {
         return false; // Default deny
     }
 
-    private boolean matchesRule(ACLRule rule, String userId, List<String> userGroups, String jobName, String environment) {
-        return matchesJob(rule, jobName) && 
-               matchesEnvironment(rule, environment) && 
-               matchesUserOrGroup(rule, userId, userGroups);
+    private boolean matchesRule(
+            ACLRule rule, String userId, List<String> userGroups, String jobName, String environment) {
+        return matchesJob(rule, jobName)
+                && matchesEnvironment(rule, environment)
+                && matchesUserOrGroup(rule, userId, userGroups);
     }
 
     private boolean matchesJob(ACLRule rule, String jobName) {
@@ -56,14 +58,15 @@ public class EnvironmentACLChecker {
         // Environment group match
         if (!rule.getEnvironmentGroups().isEmpty()) {
             EnvironmentGroup group = config.getEnvironmentGroupForEnvironment(environment);
-            if (group != null && (rule.getEnvironmentGroups().contains("*") || 
-                                 rule.getEnvironmentGroups().contains(group.getName()))) {
+            if (group != null
+                    && (rule.getEnvironmentGroups().contains("*")
+                            || rule.getEnvironmentGroups().contains(group.getName()))) {
                 return true;
             }
         }
 
         // TODO: Add environment tags logic when implemented
-        
+
         return false;
     }
 
@@ -74,8 +77,7 @@ public class EnvironmentACLChecker {
         }
 
         // Check group match
-        return rule.getGroups().stream().anyMatch(group -> 
-            "*".equals(group) || userGroups.contains(group));
+        return rule.getGroups().stream().anyMatch(group -> "*".equals(group) || userGroups.contains(group));
     }
 
     public List<String> getAccessibleEnvironments(String userId, List<String> userGroups, String jobName) {
@@ -87,8 +89,8 @@ public class EnvironmentACLChecker {
 
     public List<String> getAccessibleEnvironmentGroups(String userId, List<String> userGroups, String jobName) {
         return config.getEnvironmentGroups().stream()
-                .filter(group -> group.getEnvironments().stream()
-                        .anyMatch(env -> hasAccess(userId, userGroups, jobName, env)))
+                .filter(group ->
+                        group.getEnvironments().stream().anyMatch(env -> hasAccess(userId, userGroups, jobName, env)))
                 .map(group -> group.getName())
                 .collect(Collectors.toList());
     }

@@ -2,12 +2,6 @@ package io.jenkins.plugins.environmentacl;
 
 import hudson.Extension;
 import hudson.model.ManagementLink;
-import jenkins.model.Jenkins;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
-
-import javax.servlet.ServletException;
-import java.io.IOException;
 
 @Extension
 public class EnvironmentACLManagementLink extends ManagementLink {
