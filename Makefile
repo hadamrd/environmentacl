@@ -1,15 +1,15 @@
 # Makefile for Jenkins Plugin Development
-JENKINS_HOST = jenkins-master
 JENKINS_HOME = /data/jenkins
-HPI_FILE = target/deployment-dashboard.hpi
+HPI_FILE = target/environmentacl.hpi
 PLUGIN_NAME = deployment-dashboard
 SSH_OPTS = -o LogLevel=ERROR -o StrictHostKeyChecking=accept-new -o ControlMaster=auto -o ControlPath=/tmp/ssh_mux_%h_%p_%r -o ControlPersist=10m
-JENKINS_URL = http://$(JENKINS_HOST).sidetrade.com:8080
+JENKINS_URL = http://your-jenkins-master-url:8080
 JENKINS_USER = jenkins-admin
 JENKINS_CLI_JAR = jenkins-cli.jar
 JENKINS_CLI = java -jar $(JENKINS_CLI_JAR) -s $(JENKINS_URL) -auth $(JENKINS_USER):$(JENKINS_API_TOKEN)
 JENKINS_USER = jenkins
 JENKINS_GROUP = jenkins
+JENKINS_HOST= your-jenkins-host
 
 .PHONY: lint run build install brun deploy get-cli
 .ONESHELL:

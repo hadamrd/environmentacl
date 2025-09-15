@@ -1,32 +1,202 @@
 jenkins:
-  systemMessage: "Jenkins with Environment ACL"
-  numExecutors: 2
+  systemMessage: "Enterprise Jenkins - Environment ACL"
+  numExecutors: 4
   
   securityRealm:
     local:
       allowsSignup: false
       users:
-        - id: "testuser"
-          password: "testpass"
-        - id: "sre"
+        - id: "developer1"
+          password: "dev123"
+        - id: "developer2"
+          password: "dev123"
+        - id: "sre-alice"
           password: "sre123"
+        - id: "sre-bob"
+          password: "sre123"
+        - id: "prod-ops"
+          password: "prod123"
+        - id: "release-manager"
+          password: "release123"
+        - id: "contractor"
+          password: "contract123"
 
   authorizationStrategy:
     globalMatrix:
       entries:
+        # Developers - can configure and build dev jobs
         - user:
-            name: "testuser"
+            name: "developer1"
             permissions:
-              - "Overall/Administer"
               - "Overall/Read"
               - "Job/Build"
               - "Job/Read"
               - "Job/Configure"
+              - "Job/Create"
         - user:
-            name: "sre"
+            name: "developer2"
             permissions:
-              - "Overall/Administer"
               - "Overall/Read"
               - "Job/Build"
               - "Job/Read"
               - "Job/Configure"
+              - "Job/Create"
+        
+        # SRE - broader access including release environments
+        - user:
+            name: "sre-alice"
+            permissions:
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Read"
+              - "Job/Configure"
+              - "Job/Create"
+        - user:
+            name: "sre-bob"
+            permissions:
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Read"
+              - "Job/Configure"
+              - "Job/Create"
+        
+        # Production ops - production deployment only
+        - user:
+            name: "prod-ops"
+            permissions:
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Read"
+              - "Job/Configure"
+        
+        # Release manager - can manage releases across environments
+        - user:
+            name: "release-manager"
+            permissions:
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Read"
+              - "Job/Configure"
+              - "Job/Create"
+        
+        # Contractor - limited access
+        - user:
+            name: "contractor"
+            permissions:
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Read"
+
+unclassified:
+  environmentACL:
+    environmentGroups:
+      - name: "development"
+        description: "Development environments for feature development and testing"
+        sshCredentialId: "dev-ssh-key"
+        environments:
+          - "dev1"
+          - "dev2"
+          - "dev3"
+          - "feature-env"
+        tags:
+          - "development"
+          - "testing"
+          - "non-production"
+        vaultCredentials:
+          - vaultId: "dev-vault"
+            credentialId: "dev-vault-token"
+          - vaultId: "test-secrets"
+            credentialId: "dev-secrets-token"
+      
+      - name: "release"
+        description: "Release and staging environments"
+        sshCredentialId: "release-ssh-key"
+        environments:
+          - "staging"
+          - "uat"
+          - "pre-prod"
+          - "integration"
+        tags:
+          - "staging"
+          - "release"
+          - "non-production"
+        vaultCredentials:
+          - vaultId: "staging-vault"
+            credentialId: "staging-vault-token"
+          - vaultId: "integration-secrets"
+            credentialId: "staging-secrets-token"
+      
+      - name: "production"
+        description: "Production environments"
+        sshCredentialId: "prod-ssh-key"
+        environments:
+          - "prod-us-east"
+          - "prod-us-west"
+          - "prod-eu"
+        tags:
+          - "production"
+          - "critical"
+        vaultCredentials:
+          - vaultId: "prod-vault"
+            credentialId: "prod-vault-token"
+          - vaultId: "prod-secrets"
+            credentialId: "prod-secrets-token"
+    
+    aclRules:
+      # 1. DEVELOPERS - Can only build in development environments
+      - name: "developers-dev-access"
+        type: "allow"
+        priority: 200
+        jobs: ["build-.*", "test-.*", "feature-.*", ".*-dev"]
+        environmentGroups: ["development"]
+        users: ["developer1", "developer2"]
+        
+      # 2. SRE - Can deploy to dev and release environments
+      - name: "sre-dev-release-access"
+        type: "allow"
+        priority: 300
+        jobs: ["build-.*", "deploy-.*", "release-.*", "test-.*"]
+        environmentGroups: ["development", "release"]
+        users: ["sre-alice", "sre-bob"]
+        
+      # 3. PRODUCTION OPS - Can only deploy to production
+      - name: "prod-ops-production-access"
+        type: "allow"
+        priority: 400
+        jobs: ["deploy-.*", "prod-.*", "release-.*"]
+        environmentGroups: ["production"]
+        users: ["prod-ops"]
+        
+      # 4. RELEASE MANAGER - Can coordinate releases across all environments
+      - name: "release-manager-full-access"
+        type: "allow"
+        priority: 500
+        jobs: ["release-.*", "deploy-.*", "promote-.*"]
+        environments: ["*"]
+        users: ["release-manager"]
+        
+      # 5. CONTRACTOR - Limited to specific dev environments only
+      - name: "contractor-limited-dev"
+        type: "allow"
+        priority: 100
+        jobs: ["build-.*", "test-.*"]
+        environments: ["dev3", "feature-env"]  # Only specific dev envs
+        users: ["contractor"]
+        
+      # 6. DENY RULES - Security boundaries
+      
+      # Deny developers from production (safety net)
+      - name: "deny-dev-from-prod"
+        type: "deny"
+        priority: 800
+        jobs: ["*"]
+        environmentTags: ["production"]
+        users: ["developer1", "developer2", "contractor"]
+        
+      # Deny non-SRE from critical infrastructure jobs
+      - name: "deny-infrastructure-jobs"
+        type: "deny"
+        priority: 700
+        jobs: ["infra-.*", "k8s-.*", "terraform-.*"]
+        environments: ["*"]
+        users: ["developer1", "developer2", "contractor"]

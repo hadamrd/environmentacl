@@ -1,271 +1,202 @@
-# Jenkins Configuration as Code (JCasC) Support
+# Environment ACL Manager Plugin
 
-The Environment ACL Manager plugin fully supports Jenkins Configuration as Code, allowing you to manage your environment groups and ACL rules through YAML configuration files.
+Jenkins plugin for environment-based access control with fine-grained permissions management.
 
-## Benefits
+## Features
 
-- **Version Control**: Store your ACL configuration in Git alongside your infrastructure code
-- **Reproducibility**: Easily replicate Jenkins configurations across environments
-- **Automation**: Deploy Jenkins with pre-configured ACL rules
-- **Disaster Recovery**: Quickly restore Jenkins configuration from code
+- **Environment Choice Parameter** - Dynamic dropdown showing only accessible environments
+- **Pipeline Access Control** - `checkEnvironmentACL()` step for runtime permission checks
+- **Flexible Rules** - User/group-based access with regex job patterns and environment tags
+- **Credential Integration** - Automatic SSH and Vault credential mapping per environment
+- **JCasC Support** - Full Configuration as Code integration
+- **Management UI** - View current configuration and rules
 
-## Configuration Structure
+## Quick Setup
 
-The plugin configuration is placed under the `unclassified` section with the key `environmentACL`:
+### 1. Install Plugin
+Install from Jenkins Plugin Manager or build from source.
+
+### 2. Configure via JCasC
 
 ```yaml
 unclassified:
   environmentACL:
     environmentGroups:
-      - name: "group-name"
-        description: "Group description"
-        environments:
-          - "env1"
-          - "env2"
-        sshKeys:
-          - "ssh-key-id"
-        vaultKeys:
-          - "vault-key-id"
-        nodeLabels:
-          - "label1"
-    
-    rules:
-      - name: "rule-name"
-        type: "allow" # or "deny"
-        priority: 100
-        jobs:
-          - "job-pattern"
-        environments:
-          - "env-name"
-        envCategories:
-          - "group-name"
-        users:
-          - "username"
-        groups:
-          - "group-name"
-```
-
-## Complete Example
-
-```yaml
-jenkins:
-  systemMessage: "Jenkins with Environment ACL Manager"
-
-unclassified:
-  environmentACL:
-    environmentGroups:
-      # Production environments with restricted access
-      - name: "production"
-        description: "Production environments - restricted access"
-        environments:
-          - "prod-us-east-1"
-          - "prod-us-west-2"
-          - "prod-eu-central-1"
-        sshKeys:
-          - "prod-deploy-key"
-          - "prod-admin-key"
-        vaultKeys:
-          - "prod-vault-token"
-        nodeLabels:
-          - "production"
-          - "high-security"
-          - "linux"
-      
-      # Staging for testing
-      - name: "staging"
-        description: "Staging environments for testing"
-        environments:
-          - "staging-main"
-          - "staging-perf"
-        sshKeys:
-          - "staging-deploy-key"
-        vaultKeys:
-          - "staging-vault-token"
-        nodeLabels:
-          - "staging"
-          - "linux"
-      
-      # Development environments
       - name: "development"
-        description: "Development environments"
-        environments:
-          - "dev-shared"
-          - "dev-integration"
-        sshKeys:
-          - "dev-key"
-        vaultKeys:
-          - "dev-vault-token"
-        nodeLabels:
-          - "development"
-          - "linux"
-    
-    rules:
-      # Admins have full access
-      - name: "Administrators Full Access"
-        type: "allow"
-        priority: 100
-        jobs:
-          - "*"
-        environments:
-          - "*"
-        groups:
-          - "jenkins-admins"
+        environments: ["dev1", "dev2", "staging"]
+        tags: ["development", "testing"]
+        sshCredentialId: "dev-ssh-key"
+        vaultCredentials:
+          - vaultId: "dev-vault"
+            credentialId: "dev-vault-token"
       
-      # DevOps team can deploy to all environments
-      - name: "DevOps Team Deployment"
-        type: "allow"
-        priority: 90
-        jobs:
-          - "deploy/*"
-          - "rollback/*"
-        envCategories:
-          - "production"
-          - "staging"
-          - "development"
-        groups:
-          - "devops-team"
-      
-      # Developers can deploy to dev and staging
-      - name: "Developer Access"
-        type: "allow"
-        priority: 50
-        jobs:
-          - "*"
-        envCategories:
-          - "development"
-          - "staging"
-        groups:
-          - "developers"
-      
-      # QA team access to staging
-      - name: "QA Team Staging Access"
-        type: "allow"
-        priority: 60
-        jobs:
-          - "test/*"
-          - "smoke-test/*"
-          - "regression/*"
-        envCategories:
-          - "staging"
-        groups:
-          - "qa-team"
-      
-      # Release managers can deploy to production
-      - name: "Release Manager Production"
-        type: "allow"
-        priority: 80
-        jobs:
-          - "production-release/*"
-        envCategories:
-          - "production"
-        groups:
-          - "release-managers"
-      
-      # Explicitly deny contractors from production
-      - name: "Block Contractors from Production"
-        type: "deny"
-        priority: 95
-        jobs:
-          - "*"
-        envCategories:
-          - "production"
-        groups:
-          - "contractors"
-          - "external-users"
-      
-      # Specific user access
-      - name: "John Doe Special Access"
-        type: "allow"
-        priority: 70
-        jobs:
-          - "special-deploy"
-        environments:
-          - "prod-us-east-1"
-        users:
-          - "jdoe"
-```
-
-## Migration from UI Configuration
-
-If you're currently using the UI-based YAML configuration, you can easily migrate to JCasC:
-
-1. **Export current configuration**: Copy your YAML from the Environment ACL Manager UI
-2. **Convert to JCasC format**: Wrap your configuration under `unclassified.environmentACL`
-3. **Save as jenkins.yaml**: Add to your JCasC configuration file
-4. **Test**: Apply the configuration and verify it works
-
-## Using with Docker
-
-```dockerfile
-FROM jenkins/jenkins:lts
-COPY jenkins.yaml /var/jenkins_home/casc_configs/
-ENV CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
-```
-
-## Using with Kubernetes (Helm)
-
-```yaml
-jenkins:
-  controller:
-    JCasC:
-      configScripts:
-        environment-acl: |
-          unclassified:
-            environmentACL:
-              environmentGroups:
-                - name: "production"
-                  # ... rest of configuration
-```
-
-## Environment Variable Substitution
-
-JCasC supports environment variable substitution:
-
-```yaml
-unclassified:
-  environmentACL:
-    environmentGroups:
       - name: "production"
-        environments:
-          - "${PROD_ENV_1}"
-          - "${PROD_ENV_2}"
-        sshKeys:
-          - "${PROD_SSH_KEY_ID}"
+        environments: ["prod1", "prod2"]
+        tags: ["production", "critical"]
+        sshCredentialId: "prod-ssh-key"
+    
+    aclRules:
+      - name: "developers-access"
+        type: "allow"
+        priority: 200
+        jobs: ["build-.*", "test-.*"]
+        environmentGroups: ["development"]
+        users: ["developer1", "developer2"]
+        
+      - name: "sre-access"
+        type: "allow"
+        priority: 300
+        jobs: ["deploy-.*", "release-.*"]
+        environments: ["*"]
+        users: ["sre-team"]
 ```
 
-## Validation
+### 3. View Configuration
+Navigate to **Manage Jenkins** → **Environment ACL Manager** to view loaded configuration.
 
-The plugin automatically validates the configuration when loaded. Check the Jenkins logs for any configuration errors:
+## Usage
 
-```bash
-docker logs jenkins | grep environmentACL
+### Environment Choice Parameter
+
+Add to your job/pipeline:
+
+```groovy
+pipeline {
+    agent any
+    parameters {
+        environmentChoice(
+            name: 'TARGET_ENV',
+            description: 'Select target environment'
+        )
+    }
+    stages {
+        stage('Deploy') {
+            steps {
+                echo "Deploying to: ${params.TARGET_ENV}"
+            }
+        }
+    }
+}
 ```
 
-## Combining with Other Configurations
+### Pipeline Access Check
 
-The Environment ACL configuration can be split into separate files:
+```groovy
+stage('Environment Check') {
+    steps {
+        script {
+            def result = checkEnvironmentACL('prod1')
+            
+            if (result.hasAccess) {
+                echo "Access granted to: ${result.environment}"
+                echo "SSH Key: ${result.sshCredentialId}"
+                echo "Vault Credentials: ${result.vaultCredentials}"
+                
+                // Use credentials for deployment
+                sshagent([result.sshCredentialId]) {
+                    sh "deploy.sh ${result.environment}"
+                }
+            } else {
+                error("Access denied: ${result.errorMessage}")
+            }
+        }
+    }
+}
+```
 
-**jenkins-base.yaml:**
+## Configuration Reference
+
+### Environment Groups
+
 ```yaml
-jenkins:
-  systemMessage: "Jenkins Server"
+environmentGroups:
+  - name: "group-name"
+    description: "Optional description"
+    environments: ["env1", "env2"]          # Environment names
+    tags: ["tag1", "tag2"]                  # Optional tags for filtering
+    sshCredentialId: "ssh-key-id"           # SSH credential for this group
+    vaultCredentials:                       # Vault credential mappings
+      - vaultId: "vault-name"
+        credentialId: "vault-token-id"
 ```
 
-**jenkins-acl.yaml:**
+### ACL Rules
+
 ```yaml
-unclassified:
-  environmentACL:
-    # ... your ACL configuration
+aclRules:
+  - name: "rule-name"
+    type: "allow"                           # "allow" or "deny"
+    priority: 200                           # Higher = higher priority
+    jobs: ["build-.*", "deploy-.*"]         # Regex patterns for job names
+    environments: ["prod1"]                 # Specific environments
+    environmentGroups: ["production"]       # Or environment groups
+    environmentTags: ["critical"]           # Or by tags
+    users: ["user1", "user2"]               # User IDs
+    groups: ["group1", "group2"]            # User groups
 ```
 
-Load multiple files by setting:
-```bash
-export CASC_JENKINS_CONFIG=/path/to/configs/
+### Rule Matching
+
+- **Jobs**: Regex patterns (`deploy-.*` matches `deploy-prod`, `deploy-staging`)
+- **Priority**: Higher numbers processed first
+- **Deny vs Allow**: Deny rules checked first, then allow rules
+- **Wildcards**: Use `*` for "all" in any field
+
+## Access Patterns
+
+### Development Team
+```yaml
+- name: "dev-team-access"
+  type: "allow"
+  jobs: ["build-.*", "test-.*"]
+  environmentTags: ["development"]
+  users: ["developer1", "developer2"]
+```
+
+### Production Deployment
+```yaml
+- name: "prod-deployment"
+  type: "allow"  
+  jobs: ["deploy-.*", "release-.*"]
+  environmentTags: ["production"]
+  users: ["release-manager"]
+```
+
+### Security Boundary
+```yaml
+- name: "block-prod-access"
+  type: "deny"
+  priority: 999
+  environmentTags: ["production"]
+  users: ["contractor", "intern"]
 ```
 
 ## Troubleshooting
 
-1. **Configuration not loading**: Check Jenkins logs for parsing errors
-2. **Rules not applying**: Verify priority order (higher numbers = higher priority)
-3. **Missing credentials**: Ensure credential IDs match those defined in Jenkins
-4. **Export current config**: Use Jenkins UI → Manage Jenkins → Configuration as Code → View Configuration
+### Empty Environment List
+- Check user has matching ACL rules
+- Verify job name matches rule patterns
+- Check rule priority order (deny vs allow)
+
+### Script Console Testing
+```groovy
+import io.jenkins.plugins.environmentacl.service.EnvironmentACLChecker
+
+// Test access for specific user/job/environment
+def hasAccess = EnvironmentACLChecker.hasAccess("username", [], "job-name", "environment")
+println "Access: " + hasAccess
+
+// Get accessible environments for job
+def environments = EnvironmentACLChecker.getAccessibleEnvironments("job-name")
+println "Accessible: " + environments
+```
+
+## Requirements
+
+- Jenkins 2.462.3+
+- Java 11+
+- Configuration as Code plugin (recommended)
+
+## License
+
+MIT License

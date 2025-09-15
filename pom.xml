@@ -224,6 +224,7 @@
             <io.jenkins.plugins.environmentacl>FINE</io.jenkins.plugins.environmentacl>
             <hudson.model.DirectoryBrowserSupport.CSP>default-src 'self'; style-src 'self' 'unsafe-inline';</hudson.model.DirectoryBrowserSupport.CSP>
             <hudson.Main.development>true</hudson.Main.development>
+            <java.util.logging.config.file>${project.basedir}/log.properties</java.util.logging.config.file>
           </systemProperties>
           <webApp>
             <contextPath>/</contextPath>
