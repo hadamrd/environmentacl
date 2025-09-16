@@ -1,20 +1,19 @@
 package io.jenkins.plugins.environmentacl.step;
 
-import hudson.model.Run;
-import hudson.model.TaskListener;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Logger;
+
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution;
 
-import io.jenkins.plugins.environmentacl.service.EnvironmentACLChecker;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import io.jenkins.plugins.environmentacl.model.EnvironmentGroup;
 import io.jenkins.plugins.environmentacl.service.CredentialService;
+import io.jenkins.plugins.environmentacl.service.EnvironmentACLChecker;
 import io.jenkins.plugins.environmentacl.service.UserContextHelper;
 import io.jenkins.plugins.environmentacl.service.UserContextHelper.UserContext;
-import io.jenkins.plugins.environmentacl.model.EnvironmentGroup;
-
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.logging.Logger;
 
 public class EnvironmentACLStepExecution extends SynchronousNonBlockingStepExecution<Map<String, Object>> {
     private static final long serialVersionUID = 1L;
