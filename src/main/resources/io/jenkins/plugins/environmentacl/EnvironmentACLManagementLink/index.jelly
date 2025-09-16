@@ -50,12 +50,7 @@
                       <j:choose>
                         <j:when test="${!group.vaultCredentials.isEmpty()}">
                           <j:forEach var="vault" items="${group.vaultCredentials}" varStatus="vaultLoop">
-                            <div style="margin-bottom: 2px;">
-                              <strong>${vault.vaultId}:</strong> <code>${vault.credentialId}</code>
-                              <j:if test="${vault.description != null}">
-                                <br/><small style="color: #666;">${vault.description}</small>
-                              </j:if>
-                            </div>
+                            <div style="margin-bottom: 2px;">${vault.vaultId}</div>
                           </j:forEach>
                         </j:when>
                         <j:otherwise>

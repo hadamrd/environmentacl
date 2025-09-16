@@ -6,82 +6,28 @@ jenkins:
     local:
       allowsSignup: false
       users:
-        - id: "developer1"
+        - id: "dev"
           password: "dev123"
-        - id: "developer2"
-          password: "dev123"
-        - id: "sre-alice"
+        - id: "sre"
           password: "sre123"
-        - id: "sre-bob"
-          password: "sre123"
-        - id: "prod-ops"
-          password: "prod123"
-        - id: "release-manager"
-          password: "release123"
-        - id: "contractor"
-          password: "contract123"
+        - id: "it"
+          password: "it123"
 
   authorizationStrategy:
     globalMatrix:
       entries:
-        # Developers - can configure and build dev jobs
         - user:
-            name: "developer1"
+            name: "dev"
             permissions:
               - "Overall/Read"
               - "Job/Build"
               - "Job/Read"
-              - "Job/Configure"
-              - "Job/Create"
         - user:
-            name: "developer2"
+            name: "sre"
             permissions:
-              - "Overall/Read"
-              - "Job/Build"
-              - "Job/Read"
-              - "Job/Configure"
-              - "Job/Create"
-        
-        # SRE - broader access including release environments
+              - "Overall/Administer"
         - user:
-            name: "sre-alice"
-            permissions:
-              - "Overall/Read"
-              - "Job/Build"
-              - "Job/Read"
-              - "Job/Configure"
-              - "Job/Create"
-        - user:
-            name: "sre-bob"
-            permissions:
-              - "Overall/Read"
-              - "Job/Build"
-              - "Job/Read"
-              - "Job/Configure"
-              - "Job/Create"
-        
-        # Production ops - production deployment only
-        - user:
-            name: "prod-ops"
-            permissions:
-              - "Overall/Read"
-              - "Job/Build"
-              - "Job/Read"
-              - "Job/Configure"
-        
-        # Release manager - can manage releases across environments
-        - user:
-            name: "release-manager"
-            permissions:
-              - "Overall/Read"
-              - "Job/Build"
-              - "Job/Read"
-              - "Job/Configure"
-              - "Job/Create"
-        
-        # Contractor - limited access
-        - user:
-            name: "contractor"
+            name: "it"
             permissions:
               - "Overall/Read"
               - "Job/Build"
@@ -97,34 +43,24 @@ unclassified:
           - "dev1"
           - "dev2"
           - "dev3"
-          - "feature-env"
         tags:
-          - "development"
-          - "testing"
-          - "non-production"
+          - "dev"
         vaultCredentials:
           - vaultId: "dev-vault"
-            credentialId: "dev-vault-token"
-          - vaultId: "test-secrets"
-            credentialId: "dev-secrets-token"
-      
+            credentialId: "dev-vault-key"
+  
       - name: "release"
         description: "Release and staging environments"
         sshCredentialId: "release-ssh-key"
         environments:
-          - "staging"
-          - "uat"
-          - "pre-prod"
-          - "integration"
+          - "release1"
+          - "release2"
         tags:
           - "staging"
           - "release"
-          - "non-production"
         vaultCredentials:
           - vaultId: "staging-vault"
-            credentialId: "staging-vault-token"
-          - vaultId: "integration-secrets"
-            credentialId: "staging-secrets-token"
+            credentialId: "release-vault-key"
       
       - name: "production"
         description: "Production environments"
@@ -147,56 +83,22 @@ unclassified:
       - name: "developers-dev-access"
         type: "allow"
         priority: 200
-        jobs: ["build-.*", "test-.*", "feature-.*", ".*-dev"]
+        jobs: ["*"]
         environmentGroups: ["development"]
-        users: ["developer1", "developer2"]
+        users: ["dev"]
         
       # 2. SRE - Can deploy to dev and release environments
       - name: "sre-dev-release-access"
         type: "allow"
         priority: 300
-        jobs: ["build-.*", "deploy-.*", "release-.*", "test-.*"]
+        jobs: ["*"]
         environmentGroups: ["development", "release"]
-        users: ["sre-alice", "sre-bob"]
+        users: ["sre"]
         
       # 3. PRODUCTION OPS - Can only deploy to production
       - name: "prod-ops-production-access"
         type: "allow"
         priority: 400
-        jobs: ["deploy-.*", "prod-.*", "release-.*"]
-        environmentGroups: ["production"]
-        users: ["prod-ops"]
-        
-      # 4. RELEASE MANAGER - Can coordinate releases across all environments
-      - name: "release-manager-full-access"
-        type: "allow"
-        priority: 500
-        jobs: ["release-.*", "deploy-.*", "promote-.*"]
-        environments: ["*"]
-        users: ["release-manager"]
-        
-      # 5. CONTRACTOR - Limited to specific dev environments only
-      - name: "contractor-limited-dev"
-        type: "allow"
-        priority: 100
-        jobs: ["build-.*", "test-.*"]
-        environments: ["dev3", "feature-env"]  # Only specific dev envs
-        users: ["contractor"]
-        
-      # 6. DENY RULES - Security boundaries
-      
-      # Deny developers from production (safety net)
-      - name: "deny-dev-from-prod"
-        type: "deny"
-        priority: 800
         jobs: ["*"]
-        environmentTags: ["production"]
-        users: ["developer1", "developer2", "contractor"]
-        
-      # Deny non-SRE from critical infrastructure jobs
-      - name: "deny-infrastructure-jobs"
-        type: "deny"
-        priority: 700
-        jobs: ["infra-.*", "k8s-.*", "terraform-.*"]
-        environments: ["*"]
-        users: ["developer1", "developer2", "contractor"]
+        environmentGroups: ["production"]
+        users: ["it"]
