@@ -3,6 +3,7 @@ package io.jenkins.plugins.sharedcontainer.service;
 import hudson.Launcher;
 import hudson.model.TaskListener;
 import hudson.util.StreamTaskListener;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ContainerManager implements Serializable {
@@ -183,7 +185,7 @@ public class ContainerManager implements Serializable {
 
             listener.getLogger().println("Killed container: " + containerId);
         } catch (Exception e) {
-            LOGGER.warning("Failed to kill container " + containerId + ": " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Failed to kill container {0}: {1}", new Object[]{containerId, e.getMessage()});
         } finally {
             isKilled = true;
         }
@@ -224,7 +226,7 @@ public class ContainerManager implements Serializable {
                 try {
                     container.kill(launcher, listener);
                 } catch (Exception e) {
-                    LOGGER.warning("Failed to cleanup container " + container.containerId + ": " + e.getMessage());
+                    LOGGER.log(Level.WARNING, "Failed to cleanup container {0}: {1}", new Object[]{container.containerId, e.getMessage()});
                 }
             }
 

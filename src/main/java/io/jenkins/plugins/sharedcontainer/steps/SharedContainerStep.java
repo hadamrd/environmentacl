@@ -15,14 +15,8 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-// ============================================================================
-// 1. SHARED CONTAINER STEP
-// ============================================================================
-
 public class SharedContainerStep extends Step implements Serializable {
     private static final long serialVersionUID = 1L;
-    private static final String CONTAINER_KEY = "SHARED_CONTAINER_INSTANCE";
-
     private final String image;
     private boolean keepContainer = false;
 

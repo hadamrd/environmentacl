@@ -25,8 +25,6 @@ public class ContainerExecStepExecution extends SynchronousNonBlockingStepExecut
             throw new IllegalStateException("containerExec must be used inside a sharedContainer block");
         }
 
-        listener.getLogger().println("Executing in container " + container.getContainerId() + ": " + step.getScript());
-
         return container.execute(step.getScript(), step.getUser(), launcher, listener);
     }
 }
