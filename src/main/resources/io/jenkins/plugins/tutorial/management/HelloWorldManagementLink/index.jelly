@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Management page for HelloWorld plugin configuration.
+-->
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:f="/lib/form">
+  
+  <!-- 
+    Layout decorator provides the standard Jenkins page structure 
+    with navigation, breadcrumbs, etc.
+  -->
+  <l:layout title="HelloWorld Configuration" permission="${app.ADMINISTER}">
+    
+    <!-- Include standard Jenkins CSS and JavaScript -->
+    <l:header />
+    
+    <!-- Main content area -->
+    <l:main-panel>
+      
+      <!-- Page title and description -->
+      <h1>HelloWorld Plugin Configuration</h1>
+      <p>
+        Configure the HelloWorld plugin settings, including default messages and predefined greetings.
+        These settings will be available to all HelloWorld build steps across all jobs.
+      </p>
+      
+      <!-- Configuration form -->
+      <f:form method="post" action="configSubmit">
+        
+        <!-- Get current configuration for form binding -->
+        <j:set var="config" value="${it.configuration}" />
+        
+        <!-- Form section with the same fields as global.jelly but in a dedicated page -->
+        <f:section title="General Settings">
+          
+          <f:entry title="Default Message" field="defaultMessage"
+                   description="The default greeting message used when no specific greeting is selected">
+            <f:textbox value="${config.defaultMessage}" />
+          </f:entry>
+          
+          <f:entry title="Include Timestamp" field="includeTimestamp"
+                   description="Whether to include current timestamp in greeting messages">
+            <f:checkbox checked="${config.includeTimestamp}" />
+          </f:entry>
+          
+        </f:section>
+        
+        <f:section title="Predefined Greetings">
+          
+          <p>
+            Configure reusable greeting messages that can be referenced by ID in build steps.
+            Each greeting can be enabled/disabled and tagged with a language code.
+          </p>
+          
+          <!-- Repeatable greetings configuration -->
+          <f:entry title="Greetings" field="greetings">
+            <f:repeatable var="greeting" items="${config.greetings}" noAddButton="false" minimum="0">
+              
+              <!-- Each greeting row in a table format -->
+              <table width="100%" class="jenkins-table">
+                <tr>
+                  <td width="20%">
+                    <f:entry title="ID" field="id">
+                      <f:textbox value="${greeting.id}" />
+                    </f:entry>
+                  </td>
+                  <td width="35%">
+                    <f:entry title="Message" field="message">
+                      <f:textbox value="${greeting.message}" />
+                    </f:entry>
+                  </td>
+                  <td width="15%">
+                    <f:entry title="Language" field="language">
+                      <f:textbox value="${greeting.language}" default="en" />
+                    </f:entry>
+                  </td>
+                  <td width="15%">
+                    <f:entry title="Enabled" field="enabled">
+                      <f:checkbox checked="${greeting.enabled}" default="true" />
+                    </f:entry>
+                  </td>
+                  <td width="10%">
+                    <f:entry title="">
+                      <div align="right">
+                        <f:repeatableDeleteButton />
+                      </div>
+                    </f:entry>
+                  </td>
+                  <td width="5%">
+                    <!-- Test button for individual greeting -->
+                    <f:entry title="">
+                      <input type="button" value="Test" class="jenkins-button"
+                             onclick="testGreeting('${greeting.id}', '${greeting.message}')" />
+                    </f:entry>
+                  </td>
+                </tr>
+              </table>
+              
+            </f:repeatable>
+          </f:entry>
+          
+        </f:section>
+        
+        <!-- Action buttons -->
+        <f:bottomButtonBar>
+          <f:submit value="Save Configuration" />
+          <f:apply />
+        </f:bottomButtonBar>
+        
+      </f:form>
+      
+      <!-- Current configuration summary -->
+      <f:section title="Current Configuration Summary">
+        <table class="jenkins-table">
+          <tr>
+            <th>Setting</th>
+            <th>Value</th>
+          </tr>
+          <tr>
+            <td>Default Message</td>
+            <td>${config.defaultMessage}</td>
+          </tr>
+          <tr>
+            <td>Include Timestamp</td>
+            <td>${config.includeTimestamp ? 'Yes' : 'No'}</td>
+          </tr>
+          <tr>
+            <td>Number of Greetings</td>
+            <td>${config.greetings.size()}</td>
+          </tr>
+          <tr>
+            <td>Active Greetings</td>
+            <td>
+              <j:forEach var="greeting" items="${config.greetings}">
+                <j:if test="${greeting.enabled}">
+                  ${greeting.id} (${greeting.language})<br/>
+                </j:if>
+              </j:forEach>
+            </td>
+          </tr>
+        </table>
+      </f:section>
+      
+    </l:main-panel>
+    
+    <!-- JavaScript for testing functionality -->
+    <script type="text/javascript">
+      function testGreeting(id, message) {
+        // Simple AJAX call to test a greeting
+        fetch('testGreeting?message=' + encodeURIComponent(message))
+          .then(response => response.text())
+          .then(result => {
+            alert('Test Result: ' + result);
+          })
+          .catch(error => {
+            alert('Error testing greeting: ' + error);
+          });
+      }
+    </script>
+    
+  </l:layout>
+  
+</j:jelly>

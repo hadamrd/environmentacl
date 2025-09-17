@@ -1,0 +1,19 @@
+services:
+  jenkins-agent:
+    image: localhost:5000/jenkins-base-agent:latest
+    group_add:
+      - ${DOCKER_GID:-1001} # To be updated with your actuall docker group (run getent group docker)
+    environment:
+      - JENKINS_URL=http://host.docker.internal:8080
+      - JENKINS_SECRET=2f54c3d1fe5150f6aa1e27a2dc69c83acab2b923a824a203e1fb4159d0f7cccf
+      - JENKINS_AGENT_NAME=agent
+      - JENKINS_AGENT_WORKDIR=/home/jenkins/agent 
+      - JENKINS_AGENT_LABELS=dev
+    volumes:
+      - ${PWD}/agent:/home/jenkins/agent
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.docker/config.json:/home/jenkins/.docker/config.json:ro
+      - /tmp:/tmp
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

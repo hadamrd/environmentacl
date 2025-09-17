@@ -154,24 +154,6 @@
       <artifactId>test-harness</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>job-dsl</artifactId>
-      <version>1.87</version>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- Test dependencies -->
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>ldap</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>role-strategy</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <repositories>
@@ -213,15 +195,11 @@
         <extensions>true</extensions>
         <configuration>
           <compatibleSinceVersion>${jenkins.version}</compatibleSinceVersion>
-          <!-- Add this to install additional plugins during hpi:run -->
           <pluginFirstClassLoader>true</pluginFirstClassLoader>
           <systemProperties>
             <casc.jenkins.config>${project.basedir}/src/test/resources/jenkins-config</casc.jenkins.config>
             <jenkins.install.runSetupWizard>false</jenkins.install.runSetupWizard>
             <hudson.model.ParametersAction.keepUndefinedParameters>false</hudson.model.ParametersAction.keepUndefinedParameters>
-            <host>0.0.0.0</host>
-            <port>8080</port>
-            <io.jenkins.plugins.environmentacl>FINE</io.jenkins.plugins.environmentacl>
             <hudson.model.DirectoryBrowserSupport.CSP>default-src 'self'; style-src 'self' 'unsafe-inline';</hudson.model.DirectoryBrowserSupport.CSP>
             <hudson.Main.development>true</hudson.Main.development>
             <java.util.logging.config.file>${project.basedir}/log.properties</java.util.logging.config.file>

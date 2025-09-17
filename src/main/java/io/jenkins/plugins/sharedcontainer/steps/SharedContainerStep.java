@@ -7,6 +7,9 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.sharedcontainer.service.ContainerManager;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
@@ -17,8 +20,11 @@ import org.kohsuke.stapler.DataBoundSetter;
 
 public class SharedContainerStep extends Step implements Serializable {
     private static final long serialVersionUID = 1L;
+
     private final String image;
-    private boolean keepContainer = false;
+    private boolean cleanup = true;
+    private String options = "";
+    private int timeoutHours = 8;
 
     @DataBoundConstructor
     public SharedContainerStep(String image) {
@@ -29,13 +35,50 @@ public class SharedContainerStep extends Step implements Serializable {
         return image;
     }
 
-    public boolean isKeepContainer() {
-        return keepContainer;
+    public boolean getCleanup() {
+        return cleanup;
+    }
+
+    public String getOptions() {
+        return options;
+    }
+
+    public int getTimeoutHours() { 
+        return timeoutHours; 
     }
 
     @DataBoundSetter
-    public void setKeepContainer(boolean keepContainer) {
-        this.keepContainer = keepContainer;
+    public void setCleanup(boolean keepContainer) {
+        this.cleanup = keepContainer;
+    }
+
+    @DataBoundSetter
+    public void setOptions(String options) {
+        this.options = options != null ? options : "";
+    }
+
+    @DataBoundSetter
+    public void setTimeoutHours(int timeoutHours) {
+        // Clamp between 1 and 24 hours for safety
+        this.timeoutHours = Math.max(1, Math.min(24, timeoutHours));
+    }
+
+    /** Build Docker run command with user options */
+    public List<String> buildDockerRunArgs() {
+        List<String> args = new ArrayList<>();
+
+        // Basic docker run command
+        args.addAll(Arrays.asList("docker", "run", "-d"));
+
+        // Add user options if provided, otherwise default volume
+        if (options != null && !options.trim().isEmpty()) {
+            // Split the options string and add to command
+            // Simple split on spaces (could be enhanced for quoted args if needed)
+            String[] optionParts = options.trim().split("\\s+");
+            args.addAll(Arrays.asList(optionParts));
+        }
+
+        return args;
     }
 
     @Override
@@ -79,20 +122,42 @@ public class SharedContainerStep extends Step implements Serializable {
             StepContext context = getContext();
             TaskListener listener = context.get(TaskListener.class);
             Launcher launcher = context.get(Launcher.class);
+            FilePath workspace = context.get(FilePath.class);
 
-            String nodeName = System.getProperty("user.name", "unknown");
+            // Get the actual Jenkins node name properly
+            String nodeName = "master"; // Default fallback
+            
+            try {
+                if (workspace != null) {
+                    hudson.model.Computer computer = workspace.toComputer();
+                    if (computer != null) {
+                        String computerName = computer.getName();
+                        if (computerName != null && !computerName.isEmpty()) {
+                            nodeName = computerName;
+                        }
+                        // For built-in node, getName() returns empty string, so "master" is correct
+                    }
+                }
+            } catch (Exception e) {
+                listener.getLogger().println("Warning: Could not determine node name: " + e.getMessage());
+                listener.getLogger().println("Using fallback node name: " + nodeName);
+            }
+            
+            listener.getLogger().println("Node name detected: " + nodeName);
 
-            ContainerManager container = ContainerManager.getOrCreate(nodeName, step.getImage(), launcher, listener);
+            // Updated call - now passes the step for options support
+            ContainerManager container =
+                    ContainerManager.getOrCreate(nodeName, step.getImage(), step, launcher, listener);
 
             try {
                 // Store container in context for containerExec steps
                 context.newBodyInvoker()
                         .withContext(container)
-                        .withCallback(new ContainerCallback(container, step.isKeepContainer()))
+                        .withCallback(new ContainerCallback(container, step.getCleanup()))
                         .start();
                 return false;
             } catch (Exception e) {
-                container.release(step.isKeepContainer(), launcher, listener);
+                container.release(step.getCleanup(), launcher, listener);
                 throw e;
             }
         }

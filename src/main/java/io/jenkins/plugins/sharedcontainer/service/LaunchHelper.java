@@ -5,12 +5,31 @@ import hudson.model.TaskListener;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class LaunchHelper {
 
-    /** Execute a Docker command quietly and capture output to a stream */
+    /** Execute with PrintStream output */
+    public static int executeQuietly(
+            Launcher launcher,
+            List<String> command,
+            PrintStream output,
+            int timeoutSeconds,
+            TaskListener listener)
+            throws IOException, InterruptedException {
+
+        return launcher.launch()
+                .cmds(command)
+                .stdout(output)
+                .stderr(output)
+                .quiet(true)
+                .start()
+                .joinWithTimeout(timeoutSeconds, TimeUnit.SECONDS, listener);
+    }
+
+    /** Execute with ByteArrayOutputStream output */
     public static int executeQuietly(
             Launcher launcher,
             List<String> command,
@@ -31,15 +50,31 @@ public class LaunchHelper {
                 .joinWithTimeout(timeoutSeconds, TimeUnit.SECONDS, listener);
     }
 
-    /** Execute a Docker command quietly and discard output */
-    public static int executeQuietly(Launcher launcher, List<String> command, int timeoutSeconds, TaskListener listener)
+    /** Execute quietly and discard all output - NO AMBIGUITY */
+    public static int executeQuietlyDiscardOutput(
+            Launcher launcher, 
+            List<String> command, 
+            int timeoutSeconds, 
+            TaskListener listener)
             throws IOException, InterruptedException {
 
-        return executeQuietly(launcher, command, null, timeoutSeconds, listener);
+        // Create throwaway streams to discard output
+        ByteArrayOutputStream devNull = new ByteArrayOutputStream();
+        
+        return launcher.launch()
+                .cmds(command)
+                .stdout(devNull)
+                .stderr(devNull)
+                .quiet(true)
+                .start()
+                .joinWithTimeout(timeoutSeconds, TimeUnit.SECONDS, listener);
     }
 
-    /** Execute a Docker command and show output to user */
-    public static int executeVisible(Launcher launcher, List<String> command, TaskListener listener)
+    /** Execute and show output to user */
+    public static int executeVisible(
+            Launcher launcher, 
+            List<String> command, 
+            TaskListener listener)
             throws IOException, InterruptedException {
 
         return launcher.launch()
@@ -51,17 +86,20 @@ public class LaunchHelper {
                 .join();
     }
 
-    /** Execute a Docker command and capture output as string */
+    /** Execute and capture output as string */
     public static String executeAndCapture(
-            Launcher launcher, List<String> command, int timeoutSeconds, TaskListener listener)
+            Launcher launcher, 
+            List<String> command, 
+            int timeoutSeconds, 
+            TaskListener listener)
             throws IOException, InterruptedException {
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        int exitCode = executeQuietly(launcher, command, output, timeoutSeconds, listener);
+        executeQuietly(launcher, command, output, timeoutSeconds, listener);
 
-        if (exitCode == 0) {
-            return output.toString("UTF-8").trim();
-        }
-        return null;
+        String result = output.toString("UTF-8").trim();
+        
+        // Return output even if command failed (useful for error diagnosis)
+        return result.isEmpty() ? null : result;
     }
 }

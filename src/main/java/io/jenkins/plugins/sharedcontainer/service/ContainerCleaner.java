@@ -9,17 +9,13 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class OrphanContainerCleaner {
-    private static final Logger LOGGER = Logger.getLogger(OrphanContainerCleaner.class.getName());
+public class ContainerCleaner {
+    private static final Logger LOGGER = Logger.getLogger(ContainerCleaner.class.getName());
 
-    // Shared label constants - ContainerManager will reference these
-    public static final String PLUGIN_LABEL = "io.jenkins.sharedcontainer.managed=true";
-    public static final String IMAGE_LABEL_PREFIX = "io.jenkins.sharedcontainer.image=";
-    public static final String NODE_LABEL_PREFIX = "io.jenkins.sharedcontainer.node=";
-    public static final String CREATED_LABEL_PREFIX = "io.jenkins.sharedcontainer.created=";
-
-    /** Look for orphaned containers that match the given node and image */
-    public static String findOrphanedContainer(
+    /**
+     * Look for orphaned containers that match the given node and image
+     */
+    public static String findManagedContainer(
             String nodeName, String image, Launcher launcher, TaskListener listener) {
         try {
             // Find containers with our labels that match node+image
@@ -29,11 +25,11 @@ public class OrphanContainerCleaner {
                     "-q",
                     "--no-trunc",
                     "--filter",
-                    "label=" + PLUGIN_LABEL,
+                    "label=" + ContainerManager.PLUGIN_LABEL,
                     "--filter",
-                    "label=" + IMAGE_LABEL_PREFIX + image,
+                    "label=" + ContainerManager.IMAGE_LABEL_PREFIX + image,
                     "--filter",
-                    "label=" + NODE_LABEL_PREFIX + nodeName,
+                    "label=" + ContainerManager.NODE_LABEL_PREFIX + nodeName,
                     "--filter",
                     "status=running");
 
@@ -55,11 +51,11 @@ public class OrphanContainerCleaner {
     }
 
     /** Clean up ALL orphaned containers managed by this plugin */
-    public static void cleanupAllOrphaned(Launcher launcher, TaskListener listener) {
+    public static void cleanupAllManagedContainers(Launcher launcher, TaskListener listener) {
         try {
             // Find all containers with our management label
             List<String> findCmd =
-                    Arrays.asList("docker", "ps", "-aq", "--no-trunc", "--filter", "label=" + PLUGIN_LABEL);
+                    Arrays.asList("docker", "ps", "-aq", "--no-trunc", "--filter", "label=" + ContainerManager.PLUGIN_LABEL);
 
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             int exitCode = LaunchHelper.executeQuietly(launcher, findCmd, output, 30, listener);
@@ -75,7 +71,7 @@ public class OrphanContainerCleaner {
 
                         try {
                             List<String> removeCmd = Arrays.asList("docker", "rm", "-f", containerId.trim());
-                            LaunchHelper.executeQuietly(launcher, removeCmd, null, 10, listener);
+                            LaunchHelper.executeQuietlyDiscardOutput(launcher, removeCmd, 10, listener);
                             listener.getLogger().println("Removed orphaned container: " + getShortId(containerId));
                         } catch (Exception e) {
                             LOGGER.log(Level.WARNING, "Failed to remove orphaned container {0}: {1}", new Object[] {
