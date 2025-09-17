@@ -67,7 +67,7 @@
                         <j:when test="${!project.environments.isEmpty()}">
                           <j:forEach var="env" items="${project.environments}" varStatus="envLoop">
                             <div style="margin-bottom: 2px;">
-                              <strong>${env.category}</strong>
+                              <strong>${env.group}</strong>
                               <j:if test="${env.description != null}"> - ${env.description}</j:if>
                             </div>
                           </j:forEach>

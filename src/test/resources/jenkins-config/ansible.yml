@@ -2,16 +2,18 @@ unclassified:
   ansibleProjects:
     projects:
       - id: "application-deploy"
-        repository: "https://github.com/myorg/ansible-app-deployment"
-        defaultBranch: "develop"
-        vaults:
-          - name: "app-secrets"
-            credentialId: "app-vault-password"
-            vaultFile: "vars/secrets.yml"
+        repository: "https://github.com/hadamrd/infra-ansible"
+        defaultBranch: "main"
         environments:
-          - category: "staging"
-            inventoryPath: "inventories/staging.yml"
-            sshKeys:
-              - "staging-ssh-key"
-            vaults:
-              - "app-secrets"
+          - group: "release"
+            inventoryPath: "inventories/release.yml"
+        ansibleConfig:
+          hostKeyChecking: "False"
+          timeout: "30" 
+          gathering: "smart"
+          pipelining: "True"
+          stdout_callback: "yaml"
+          become: "True"
+          becomeMethod: "sudo"
+          sshArgs: "-o ControlMaster=auto"
+          logPath: "/var/log/ansible.log"

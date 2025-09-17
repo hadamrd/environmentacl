@@ -11,21 +11,21 @@ import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 
 public class AnsibleEnvironment extends AbstractDescribableImpl<AnsibleEnvironment> {
-    private String category;
+    private String group;
     private String description;
     private String inventoryPath;
     private List<String> sshKeys;
     private List<String> vaults;
 
     @DataBoundConstructor
-    public AnsibleEnvironment(String category) {
-        this.category = category;
+    public AnsibleEnvironment(String group) {
+        this.group = group;
         this.sshKeys = new ArrayList<>();
         this.vaults = new ArrayList<>();
     }
 
-    public String getCategory() {
-        return category;
+    public String getGroup() {
+        return group;
     }
 
     public String getDescription() {
@@ -70,5 +70,11 @@ public class AnsibleEnvironment extends AbstractDescribableImpl<AnsibleEnvironme
         public String getDisplayName() {
             return "Ansible Environment";
         }
+    }
+
+    public String getRenderedInventoryPath(String envName) {
+        String template = getInventoryPath();
+        // Simple template replacement - {{env}} becomes the actual env name
+        return template.replace("{{env}}", envName.toLowerCase());
     }
 }

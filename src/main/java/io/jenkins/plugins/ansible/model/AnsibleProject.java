@@ -1,9 +1,7 @@
 package io.jenkins.plugins.ansible.model;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -18,7 +16,7 @@ public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> {
     private String execEnv;
     private String azureCredentialId;
     private String defaultBranch;
-    private Map<String, String> ansibleConfig;
+    private AnsibleConfig ansibleConfig;
     private List<AnsibleVault> vaults;
     private List<AnsibleEnvironment> environments;
 
@@ -27,7 +25,7 @@ public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> {
         this.id = id;
         this.repository = repository;
         this.defaultBranch = "main";
-        this.ansibleConfig = new HashMap<>();
+        this.ansibleConfig = new AnsibleConfig();
         this.vaults = new ArrayList<>();
         this.environments = new ArrayList<>();
     }
@@ -53,8 +51,8 @@ public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> {
         return defaultBranch != null ? defaultBranch : "main";
     }
 
-    public Map<String, String> getAnsibleConfig() {
-        return ansibleConfig != null ? ansibleConfig : new HashMap<>();
+    public AnsibleConfig getAnsibleConfig() {
+        return ansibleConfig != null ? ansibleConfig : new AnsibleConfig();
     }
 
     public List<AnsibleVault> getVaults() {
@@ -82,8 +80,8 @@ public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> {
     }
 
     @DataBoundSetter
-    public void setAnsibleConfig(Map<String, String> ansibleConfig) {
-        this.ansibleConfig = ansibleConfig != null ? ansibleConfig : new HashMap<>();
+    public void setAnsibleConfig(AnsibleConfig ansibleConfig) {
+        this.ansibleConfig = ansibleConfig != null ? ansibleConfig : new AnsibleConfig();
     }
 
     @DataBoundSetter
@@ -104,9 +102,9 @@ public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> {
                 .orElse(null);
     }
 
-    public AnsibleEnvironment getEnvironmentByCategory(String category) {
+    public AnsibleEnvironment getEnvironmentByGroup(String group) {
         return getEnvironments().stream()
-                .filter(env -> category.equals(env.getCategory()))
+                .filter(env -> group.equals(env.getGroup()))
                 .findFirst()
                 .orElse(null);
     }
