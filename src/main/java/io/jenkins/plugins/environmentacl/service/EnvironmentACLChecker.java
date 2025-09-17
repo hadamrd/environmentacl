@@ -1,17 +1,16 @@
 package io.jenkins.plugins.environmentacl.service;
 
+import hudson.model.Run;
 import io.jenkins.plugins.environmentacl.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.environmentacl.model.ACLRule;
 import io.jenkins.plugins.environmentacl.model.EnvironmentGroup;
 import io.jenkins.plugins.environmentacl.service.UserContextHelper.UserContext;
-import hudson.model.Run;
-
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public final class EnvironmentACLChecker {
-    
+
     private EnvironmentACLChecker() {}
 
     public static boolean hasAccess(String userId, List<String> userGroups, String jobName, String environment) {
@@ -40,17 +39,13 @@ public final class EnvironmentACLChecker {
         return false; // Default deny
     }
 
-    /**
-     * Check access using current authentication context (for UI/parameters)
-     */
+    /** Check access using current authentication context (for UI/parameters) */
     public static boolean hasAccess(String jobName, String environment) {
         UserContext context = UserContextHelper.getCurrentUserContext();
         return hasAccess(context.getUserId(), context.getGroups(), jobName, environment);
     }
-    
-    /**
-     * Check access using build run context (for pipeline steps)
-     */
+
+    /** Check access using build run context (for pipeline steps) */
     public static boolean hasAccess(Run<?, ?> run, String environment) {
         UserContext context = UserContextHelper.getUserContextFromRun(run);
         String jobName = run.getParent().getFullName();
@@ -80,7 +75,7 @@ public final class EnvironmentACLChecker {
 
     private static boolean matchesEnvironment(ACLRule rule, String environment) {
         EnvironmentACLGlobalConfiguration config = EnvironmentACLGlobalConfiguration.get();
-        
+
         // Direct environment match
         if (rule.getEnvironments().contains("*") || rule.getEnvironments().contains(environment)) {
             return true;
@@ -101,7 +96,8 @@ public final class EnvironmentACLChecker {
             EnvironmentGroup group = config.getEnvironmentGroupForEnvironment(environment);
             if (group != null && group.getTags() != null) {
                 boolean tagMatch = rule.getEnvironmentTags().stream()
-                    .anyMatch(ruleTag -> "*".equals(ruleTag) || group.getTags().contains(ruleTag));
+                        .anyMatch(ruleTag ->
+                                "*".equals(ruleTag) || group.getTags().contains(ruleTag));
                 if (tagMatch) {
                     return true;
                 }
@@ -122,7 +118,7 @@ public final class EnvironmentACLChecker {
         UserContext context = UserContextHelper.getCurrentUserContext();
         EnvironmentACLGlobalConfiguration config = EnvironmentACLGlobalConfiguration.get();
         List<String> allEnvironments = config.getAllEnvironments();
-        
+
         return allEnvironments.stream()
                 .filter(env -> hasAccess(context.getUserId(), context.getGroups(), jobName, env))
                 .collect(Collectors.toList());

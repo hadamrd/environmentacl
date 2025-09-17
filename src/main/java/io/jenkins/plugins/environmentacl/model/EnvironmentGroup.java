@@ -3,11 +3,10 @@ package io.jenkins.plugins.environmentacl.model;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 
 public class EnvironmentGroup extends AbstractDescribableImpl<EnvironmentGroup> {
     private String name;
@@ -26,10 +25,14 @@ public class EnvironmentGroup extends AbstractDescribableImpl<EnvironmentGroup> 
     }
 
     // Getters and setters
-    public String getName() { return name; }
-    
-    public String getDescription() { return description; }
-    
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
     @DataBoundSetter
     public void setDescription(String description) {
         this.description = description;
@@ -53,7 +56,9 @@ public class EnvironmentGroup extends AbstractDescribableImpl<EnvironmentGroup> 
         this.tags = tags != null ? tags : new ArrayList<>();
     }
 
-    public String getSshCredentialId() { return sshCredentialId; }
+    public String getSshCredentialId() {
+        return sshCredentialId;
+    }
 
     @DataBoundSetter
     public void setSshCredentialId(String sshCredentialId) {

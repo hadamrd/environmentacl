@@ -44,9 +44,7 @@ public class AnsibleProjectsGlobalConfiguration extends GlobalConfiguration {
     }
 
     public List<String> getAllProjectIds() {
-        return getProjects().stream()
-                .map(AnsibleProject::getId)
-                .collect(Collectors.toList());
+        return getProjects().stream().map(AnsibleProject::getId).collect(Collectors.toList());
     }
 
     @Override

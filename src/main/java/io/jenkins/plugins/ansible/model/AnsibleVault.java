@@ -1,11 +1,10 @@
 package io.jenkins.plugins.ansible.model;
 
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 
 public class AnsibleVault extends AbstractDescribableImpl<AnsibleVault> {
     private String name;

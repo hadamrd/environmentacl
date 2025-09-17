@@ -1,13 +1,12 @@
 package io.jenkins.plugins.ansible.service;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import io.jenkins.plugins.ansible.AnsibleProjectsGlobalConfiguration;
 import io.jenkins.plugins.ansible.model.AnsibleEnvironment;
 import io.jenkins.plugins.ansible.model.AnsibleProject;
 import io.jenkins.plugins.environmentacl.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.environmentacl.model.EnvironmentGroup;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AnsibleEnvironmentService {
     private final AnsibleProjectsGlobalConfiguration ansibleConfig;
@@ -18,9 +17,7 @@ public class AnsibleEnvironmentService {
         this.envAclConfig = EnvironmentACLGlobalConfiguration.get();
     }
 
-    /**
-     * Get SSH credential ID for an environment by looking up its group
-     */
+    /** Get SSH credential ID for an environment by looking up its group */
     public String getSshCredentialForEnvironment(String projectId, String envName) {
         // Find the environment group from Environment ACL plugin
         EnvironmentGroup envGroup = envAclConfig.getEnvironmentGroupForEnvironment(envName);
@@ -30,16 +27,12 @@ public class AnsibleEnvironmentService {
         return null;
     }
 
-    /**
-     * Get vault credential ID for an environment and vault ID
-     */
+    /** Get vault credential ID for an environment and vault ID */
     public String getVaultCredentialForEnvironment(String envName, String vaultId) {
         return envAclConfig.getVaultCredentialId(envName, vaultId);
     }
 
-    /**
-     * Get the rendered inventory path for a specific environment
-     */
+    /** Get the rendered inventory path for a specific environment */
     public String getInventoryPath(String projectId, String envName) {
         AnsibleProject project = ansibleConfig.getProjectById(projectId);
         if (project == null) {
@@ -61,9 +54,7 @@ public class AnsibleEnvironmentService {
         return ansibleEnv.getRenderedInventoryPath(envName);
     }
 
-    /**
-     * Get all environments accessible to an Ansible project (through mapped groups)
-     */
+    /** Get all environments accessible to an Ansible project (through mapped groups) */
     public List<String> getAccessibleEnvironments(String projectId) {
         AnsibleProject project = ansibleConfig.getProjectById(projectId);
         if (project == null) {
@@ -71,35 +62,31 @@ public class AnsibleEnvironmentService {
         }
 
         List<String> accessibleEnvs = new ArrayList<>();
-        
+
         // For each environment group mapping in the Ansible project
         for (AnsibleEnvironment ansibleEnv : project.getEnvironments()) {
             String groupName = ansibleEnv.getGroup();
-            
+
             // Find the corresponding environment group
             EnvironmentGroup envGroup = envAclConfig.getEnvironmentGroups().stream()
                     .filter(group -> groupName.equals(group.getName()))
                     .findFirst()
                     .orElse(null);
-                    
+
             if (envGroup != null) {
                 accessibleEnvs.addAll(envGroup.getEnvironments());
             }
         }
-        
+
         return accessibleEnvs;
     }
 
-    /**
-     * Get environment group information for an environment
-     */
+    /** Get environment group information for an environment */
     public EnvironmentGroup getEnvironmentGroupForEnvironment(String envName) {
         return envAclConfig.getEnvironmentGroupForEnvironment(envName);
     }
 
-    /**
-     * Check if an Ansible project has configuration for a specific environment
-     */
+    /** Check if an Ansible project has configuration for a specific environment */
     public boolean hasConfigurationForEnvironment(String projectId, String envName) {
         try {
             getInventoryPath(projectId, envName);

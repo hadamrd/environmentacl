@@ -4,15 +4,13 @@ import hudson.Extension;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
+import io.jenkins.plugins.environmentacl.service.EnvironmentACLChecker;
+import java.util.List;
+import java.util.logging.Logger;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
-
-import io.jenkins.plugins.environmentacl.service.EnvironmentACLChecker;
-
-import java.util.List;
-import java.util.logging.Logger;
 
 public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
     private static final Logger LOGGER = Logger.getLogger(EnvironmentChoiceParameterDefinition.class.getName());
@@ -27,14 +25,19 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
         try {
             String jobName = getCurrentJobFullName();
             List<String> accessibleEnvs = EnvironmentACLChecker.getAccessibleEnvironments(jobName);
-            
+
             // Secure logging - only to Jenkins system log
-            LOGGER.fine("Environment parameter '" + getName() + "' for job '" + jobName + 
-                       "' returned " + accessibleEnvs.size() + " accessible environments");
-            
+            LOGGER.fine("Environment parameter '"
+                    + getName()
+                    + "' for job '"
+                    + jobName
+                    + "' returned "
+                    + accessibleEnvs.size()
+                    + " accessible environments");
+
             // Return actual choices only - no error messages mixed in
             return accessibleEnvs;
-            
+
         } catch (Exception e) {
             LOGGER.warning("Error loading environments for parameter '" + getName() + "': " + e.getMessage());
             // Return empty list on error - let UI handle it
