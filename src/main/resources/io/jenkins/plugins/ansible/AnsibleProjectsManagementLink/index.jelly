@@ -1,0 +1,117 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" 
+         xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  
+  <l:layout title="Ansible Projects Manager" permission="${app.ADMINISTER}">
+    <l:header />
+
+    <l:main-panel>
+      <h1>Ansible Projects Manager</h1>
+      <p>Current configuration imported from Configuration as Code (JCasC)</p>
+      
+      <j:set var="config" value="${it.configuration}" />
+      
+      <!-- Ansible Projects Section -->
+      <f:section title="Ansible Projects">
+        <j:choose>
+          <j:when test="${!config.projects.isEmpty()}">
+            <table class="jenkins-table sortable">
+              <thead>
+                <tr>
+                  <th>Project ID</th>
+                  <th>Repository</th>
+                  <th>Execution Environment</th>
+                  <th>Default Branch</th>
+                  <th>Azure Credential</th>
+                  <th>Environments</th>
+                  <th>Vaults</th>
+                </tr>
+              </thead>
+              <tbody>
+                <j:forEach var="project" items="${config.projects}">
+                  <tr>
+                    <td><strong>${project.id}</strong></td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${project.repository.startsWith('http')}">
+                          <a href="${project.repository}" target="_blank">${project.repository}</a>
+                        </j:when>
+                        <j:otherwise>
+                          <code>${project.repository}</code>
+                        </j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${project.execEnv != null}">
+                          <code>${project.execEnv}</code>
+                        </j:when>
+                        <j:otherwise>
+                          <em>Default</em>
+                        </j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td><span class="jenkins-label">${project.defaultBranch}</span></td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${project.azureCredentialId != null}">
+                          <code>${project.azureCredentialId}</code>
+                        </j:when>
+                        <j:otherwise>
+                          <em>None</em>
+                        </j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${!project.environments.isEmpty()}">
+                          <j:forEach var="env" items="${project.environments}" varStatus="envLoop">
+                            <div style="margin-bottom: 2px;">
+                              <strong>${env.category}</strong>
+                              <j:if test="${env.description != null}"> - ${env.description}</j:if>
+                            </div>
+                          </j:forEach>
+                        </j:when>
+                        <j:otherwise>
+                          <em>None</em>
+                        </j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${!project.vaults.isEmpty()}">
+                          <j:forEach var="vault" items="${project.vaults}" varStatus="vaultLoop">
+                            <div style="margin-bottom: 2px;">
+                              <strong>${vault.name}</strong>
+                              <j:if test="${vault.description != null}"> - ${vault.description}</j:if>
+                            </div>
+                          </j:forEach>
+                        </j:when>
+                        <j:otherwise>
+                          <em>None</em>
+                        </j:otherwise>
+                      </j:choose>
+                    </td>
+                  </tr>
+                </j:forEach>
+              </tbody>
+            </table>
+          </j:when>
+          <j:otherwise>
+            <div class="jenkins-alert jenkins-alert-info">
+              <p>No Ansible projects configured. Add them via Configuration as Code (JCasC).</p>
+              <pre><code>unclassified:
+  ansibleProjects:
+    projects:
+      - id: "my-project"
+        repository: "https://github.com/org/ansible-project"
+        defaultBranch: "main"</code></pre>
+            </div>
+          </j:otherwise>
+        </j:choose>
+      </f:section>
+      
+    </l:main-panel>
+  </l:layout>
+  
+</j:jelly>

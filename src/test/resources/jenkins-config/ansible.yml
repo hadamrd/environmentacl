@@ -1,0 +1,17 @@
+unclassified:
+  ansibleProjects:
+    projects:
+      - id: "application-deploy"
+        repository: "https://github.com/myorg/ansible-app-deployment"
+        defaultBranch: "develop"
+        vaults:
+          - name: "app-secrets"
+            credentialId: "app-vault-password"
+            vaultFile: "vars/secrets.yml"
+        environments:
+          - category: "staging"
+            inventoryPath: "inventories/staging.yml"
+            sshKeys:
+              - "staging-ssh-key"
+            vaults:
+              - "app-secrets"
