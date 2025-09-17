@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import hudson.Launcher;
@@ -251,18 +252,15 @@ public class ContainerManager implements Serializable {
                 return;
             }
             
-            listener.getLogger().println("Cleaning up " + containers.size() + " shared container(s)...");
-            
             for (ContainerManager container : containers) {
                 try {
                     container.kill(launcher, listener);
                 } catch (Exception e) {
-                    LOGGER.warning("Failed to cleanup container " + container.getShortId() + ": " + e.getMessage());
+                    LOGGER.log(Level.WARNING, "Failed to cleanup container {0}: {1}", new Object[]{container.getShortId(), e.getMessage()});
                 }
             }
             
             activeContainers.clear();
-            listener.getLogger().println("Container cleanup completed");
         }
     }
 
