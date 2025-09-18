@@ -3,8 +3,8 @@ package io.jenkins.plugins.sharedcontainer.steps;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.TaskListener;
-import io.jenkins.plugins.sharedcontainer.service.ContainerManager;
 import io.jenkins.plugins.sharedcontainer.service.ContainerCleaner;
+import io.jenkins.plugins.sharedcontainer.service.ContainerManager;
 import java.io.Serializable;
 import java.util.Set;
 import org.jenkinsci.plugins.workflow.steps.Step;
@@ -23,7 +23,9 @@ public class CleanupContainersStep extends Step implements Serializable {
     @DataBoundConstructor
     public CleanupContainersStep() {}
 
-    public boolean isForce() { return force; }
+    public boolean isForce() {
+        return force;
+    }
 
     @DataBoundSetter
     public void setForce(boolean force) {

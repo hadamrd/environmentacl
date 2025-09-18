@@ -13,11 +13,7 @@ public class LaunchHelper {
 
     /** Execute with PrintStream output */
     public static int executeQuietly(
-            Launcher launcher,
-            List<String> command,
-            PrintStream output,
-            int timeoutSeconds,
-            TaskListener listener)
+            Launcher launcher, List<String> command, PrintStream output, int timeoutSeconds, TaskListener listener)
             throws IOException, InterruptedException {
 
         return launcher.launch()
@@ -52,15 +48,12 @@ public class LaunchHelper {
 
     /** Execute quietly and discard all output - NO AMBIGUITY */
     public static int executeQuietlyDiscardOutput(
-            Launcher launcher, 
-            List<String> command, 
-            int timeoutSeconds, 
-            TaskListener listener)
+            Launcher launcher, List<String> command, int timeoutSeconds, TaskListener listener)
             throws IOException, InterruptedException {
 
         // Create throwaway streams to discard output
         ByteArrayOutputStream devNull = new ByteArrayOutputStream();
-        
+
         return launcher.launch()
                 .cmds(command)
                 .stdout(devNull)
@@ -71,10 +64,7 @@ public class LaunchHelper {
     }
 
     /** Execute and show output to user */
-    public static int executeVisible(
-            Launcher launcher, 
-            List<String> command, 
-            TaskListener listener)
+    public static int executeVisible(Launcher launcher, List<String> command, TaskListener listener)
             throws IOException, InterruptedException {
 
         return launcher.launch()
@@ -88,17 +78,14 @@ public class LaunchHelper {
 
     /** Execute and capture output as string */
     public static String executeAndCapture(
-            Launcher launcher, 
-            List<String> command, 
-            int timeoutSeconds, 
-            TaskListener listener)
+            Launcher launcher, List<String> command, int timeoutSeconds, TaskListener listener)
             throws IOException, InterruptedException {
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         executeQuietly(launcher, command, output, timeoutSeconds, listener);
 
         String result = output.toString("UTF-8").trim();
-        
+
         // Return output even if command failed (useful for error diagnosis)
         return result.isEmpty() ? null : result;
     }

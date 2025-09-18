@@ -17,12 +17,6 @@
       <f:textbox />
     </f:entry>
     
-    <!-- Checkbox for timestamp option -->
-    <f:entry title="Include Timestamp" field="includeTimestamp"
-             description="Whether to include current timestamp in greeting messages">
-      <f:checkbox />
-    </f:entry>
-    
     <!-- 
       Repeatable section for managing multiple greetings.
       This creates an "Add" button and allows users to configure multiple greeting objects.
@@ -72,7 +66,7 @@
     
     <!-- Validation button to test configuration -->
     <f:validateButton title="Test Configuration" progress="Testing..." 
-                      method="testGreeting" with="defaultMessage,includeTimestamp" />
+                      method="testGreeting" with="defaultMessage" />
     
   </f:section>
   

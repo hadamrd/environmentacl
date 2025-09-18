@@ -1,0 +1,8 @@
+unclassified:
+  sshEnvironments:
+    environments:
+      - name: "prod"
+        sshCredentialId: "prod-ssh-key"
+        username: "ansible"
+        hosts:
+          - "91.99.139.97"

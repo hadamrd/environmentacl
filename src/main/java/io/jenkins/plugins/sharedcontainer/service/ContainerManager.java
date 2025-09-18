@@ -1,6 +1,5 @@
 package io.jenkins.plugins.sharedcontainer.service;
 
-
 import hudson.Launcher;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.sharedcontainer.steps.SharedContainerStep;
@@ -99,17 +98,17 @@ public class ContainerManager implements Serializable {
         }
 
         // Get detailed container status
-        List<String> statusCmd = List.of("docker", "inspect", "-f", 
-            "{{.State.Running}} {{.State.Status}} {{.State.ExitCode}}", containerId);
+        List<String> statusCmd = List.of(
+                "docker", "inspect", "-f", "{{.State.Running}} {{.State.Status}} {{.State.ExitCode}}", containerId);
         String statusInfo = LaunchHelper.executeAndCapture(launcher, statusCmd, 10, listener);
-        
+
         listener.getLogger().println("Container status: " + statusInfo);
-        
+
         if (statusInfo == null || !statusInfo.startsWith("true")) {
             // Container failed - get logs to see why
             List<String> logsCmd = List.of("docker", "logs", containerId);
             String containerLogs = LaunchHelper.executeAndCapture(launcher, logsCmd, 10, listener);
-            
+
             listener.getLogger().println("Container failed to start. Status: " + statusInfo);
             listener.getLogger().println("Container logs:");
             if (containerLogs != null && !containerLogs.isEmpty()) {
@@ -117,11 +116,11 @@ public class ContainerManager implements Serializable {
             } else {
                 listener.getLogger().println("No logs available");
             }
-            
+
             // Clean up failed container
             List<String> cleanupCmd = List.of("docker", "rm", "-f", containerId);
             LaunchHelper.executeQuietlyDiscardOutput(launcher, cleanupCmd, 10, listener);
-            
+
             throw new IOException("Container failed to start. See logs above for details.");
         }
 
@@ -189,7 +188,7 @@ public class ContainerManager implements Serializable {
             LaunchHelper.executeQuietlyDiscardOutput(launcher, removeCmd, 30, listener);
             listener.getLogger().println("Removed container: " + getShortId());
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to kill container {0}: {1}", new Object[]{getShortId(), e.getMessage()});
+            LOGGER.log(Level.WARNING, "Failed to kill container {0}: {1}", new Object[] {getShortId(), e.getMessage()});
             listener.getLogger().println("Warning: Failed to remove container " + getShortId());
         } finally {
             isKilled = true;

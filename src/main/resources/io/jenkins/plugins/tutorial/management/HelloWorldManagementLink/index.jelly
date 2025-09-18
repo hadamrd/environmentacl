@@ -38,11 +38,6 @@
             <f:textbox value="${config.defaultMessage}" />
           </f:entry>
           
-          <f:entry title="Include Timestamp" field="includeTimestamp"
-                   description="Whether to include current timestamp in greeting messages">
-            <f:checkbox checked="${config.includeTimestamp}" />
-          </f:entry>
-          
         </f:section>
         
         <f:section title="Predefined Greetings">
@@ -119,10 +114,6 @@
           <tr>
             <td>Default Message</td>
             <td>${config.defaultMessage}</td>
-          </tr>
-          <tr>
-            <td>Include Timestamp</td>
-            <td>${config.includeTimestamp ? 'Yes' : 'No'}</td>
           </tr>
           <tr>
             <td>Number of Greetings</td>

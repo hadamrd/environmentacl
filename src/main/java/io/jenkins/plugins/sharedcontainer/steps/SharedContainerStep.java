@@ -43,8 +43,8 @@ public class SharedContainerStep extends Step implements Serializable {
         return options;
     }
 
-    public int getTimeoutHours() { 
-        return timeoutHours; 
+    public int getTimeoutHours() {
+        return timeoutHours;
     }
 
     @DataBoundSetter
@@ -126,7 +126,7 @@ public class SharedContainerStep extends Step implements Serializable {
 
             // Get the actual Jenkins node name properly
             String nodeName = "master"; // Default fallback
-            
+
             try {
                 if (workspace != null) {
                     hudson.model.Computer computer = workspace.toComputer();
@@ -142,7 +142,7 @@ public class SharedContainerStep extends Step implements Serializable {
                 listener.getLogger().println("Warning: Could not determine node name: " + e.getMessage());
                 listener.getLogger().println("Using fallback node name: " + nodeName);
             }
-            
+
             listener.getLogger().println("Node name detected: " + nodeName);
 
             // Updated call - now passes the step for options support

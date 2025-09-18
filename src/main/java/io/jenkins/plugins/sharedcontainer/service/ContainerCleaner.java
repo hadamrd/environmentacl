@@ -12,11 +12,8 @@ import java.util.logging.Logger;
 public class ContainerCleaner {
     private static final Logger LOGGER = Logger.getLogger(ContainerCleaner.class.getName());
 
-    /**
-     * Look for orphaned containers that match the given node and image
-     */
-    public static String findManagedContainer(
-            String nodeName, String image, Launcher launcher, TaskListener listener) {
+    /** Look for orphaned containers that match the given node and image */
+    public static String findManagedContainer(String nodeName, String image, Launcher launcher, TaskListener listener) {
         try {
             // Find containers with our labels that match node+image
             List<String> findCmd = Arrays.asList(
@@ -54,8 +51,8 @@ public class ContainerCleaner {
     public static void cleanupAllManagedContainers(Launcher launcher, TaskListener listener) {
         try {
             // Find all containers with our management label
-            List<String> findCmd =
-                    Arrays.asList("docker", "ps", "-aq", "--no-trunc", "--filter", "label=" + ContainerManager.PLUGIN_LABEL);
+            List<String> findCmd = Arrays.asList(
+                    "docker", "ps", "-aq", "--no-trunc", "--filter", "label=" + ContainerManager.PLUGIN_LABEL);
 
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             int exitCode = LaunchHelper.executeQuietly(launcher, findCmd, output, 30, listener);

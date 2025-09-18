@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Global configuration page for SSH Environments
+-->
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+  
+  <f:section title="SSH Environments Configuration">
+    <f:description>
+      Configure SSH environments for remote command execution.
+      Each environment contains a group of hosts with shared SSH credentials.
+    </f:description>
+    
+    <!-- Repeatable section for SSH environments -->
+    <f:entry title="SSH Environments" field="environments"
+             description="Define groups of hosts that can be managed together">
+      
+      <f:repeatable var="environment" items="${instance.environments}" noAddButton="false" minimum="0">
+        <table width="100%">
+          <tr>
+            <td width="20%">
+              <!-- Environment name -->
+              <f:entry title="Environment Name" field="name" 
+                       description="Name for this environment (e.g., dev, staging, prod)">
+                <f:textbox value="${environment.name}" />
+              </f:entry>
+            </td>
+            <td width="25%">
+              <!-- SSH credentials selection -->
+              <f:entry title="SSH Credentials" field="sshCredentialId"
+                       description="SSH private key credentials for authentication">
+                <c:select context="/jenkins" includeUser="false" value="${environment.sshCredentialId}" />
+              </f:entry>
+            </td>
+            <td width="15%">
+              <!-- Username -->
+              <f:entry title="Username" field="username"
+                       description="SSH username (default: root)">
+                <f:textbox value="${environment.username}" default="root" />
+              </f:entry>
+            </td>
+            <td width="10%">
+              <!-- Port -->
+              <f:entry title="Port" field="port"
+                       description="SSH port (default: 22)">
+                <f:number value="${environment.port}" default="22" />
+              </f:entry>
+            </td>
+            <td width="25%">
+              <!-- Hosts list -->
+              <f:entry title="Hosts" field="hosts"
+                       description="List of hostnames or IP addresses (one per line)">
+                <f:textarea value="${environment.hosts.join('\n')}" rows="3" />
+              </f:entry>
+            </td>
+            <td width="5%">
+              <!-- Delete button -->
+              <f:entry title="">
+                <div align="right">
+                  <f:repeatableDeleteButton />
+                </div>
+              </f:entry>
+            </td>
+          </tr>
+        </table>
+      </f:repeatable>
+    </f:entry>
+    
+    <!-- Test connection button -->
+    <f:validateButton title="Test SSH Connections" progress="Testing connections..." 
+                      method="testConnections" with="environments" />
+    
+    <!-- Help text -->
+    <f:entry title="">
+      <div style="margin-top: 20px; padding: 10px; background-color: #f0f0f0; border-radius: 5px;">
+        <h4>Usage in Pipeline:</h4>
+        <pre>
+sshHost('dev') {
+    sh 'hostname'
+    sh 'uptime'
+    sh 'ls -la'
+}
+        </pre>
+        <p>
+          This will execute the commands inside the block on all hosts in the 'dev' environment.
+          Make sure to configure SSH credentials and add the Jenkins public key to the target hosts.
+        </p>
+      </div>
+    </f:entry>
+    
+  </f:section>
+  
+</j:jelly>

@@ -5,8 +5,8 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 /**
- * Model class representing a greeting configuration.
- * This is a simple data object that holds greeting information.
+ * Model class representing a greeting configuration. This is a simple data object that holds
+ * greeting information.
  */
 public class Greeting implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -14,14 +14,13 @@ public class Greeting implements Serializable {
     // Required fields
     private final String id;
     private final String message;
-    
+
     // Optional fields
     private String language = "en";
     private boolean enabled = true;
 
     /**
-     * Constructor for required fields.
-     * @DataBoundConstructor tells Jenkins to use this constructor
+     * Constructor for required fields. @DataBoundConstructor tells Jenkins to use this constructor
      * when creating instances from form data or JCasC.
      */
     @DataBoundConstructor
@@ -58,20 +57,25 @@ public class Greeting implements Serializable {
         this.enabled = enabled;
     }
 
-    /**
-     * Display name for UI dropdowns
-     */
+    /** Display name for UI dropdowns */
     public String getDisplayName() {
         return id + " (" + language + ")";
     }
 
     @Override
     public String toString() {
-        return "Greeting{" +
-                "id='" + id + '\'' +
-                ", message='" + message + '\'' +
-                ", language='" + language + '\'' +
-                ", enabled=" + enabled +
-                '}';
+        return "Greeting{"
+                + "id='"
+                + id
+                + '\''
+                + ", message='"
+                + message
+                + '\''
+                + ", language='"
+                + language
+                + '\''
+                + ", enabled="
+                + enabled
+                + '}';
     }
 }

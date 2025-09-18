@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SSH Environments management page
+  Place in: src/main/resources/io/jenkins/plugins/tutorial/management/SshEnvironmentsManagementLink/index.jelly
+-->
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+  
+  <l:layout title="SSH Environments" permission="${app.ADMINISTER}">
+    <l:header />
+    
+    <l:main-panel>
+      
+      <h1>SSH Environments Configuration</h1>
+      <p>
+        Manage SSH environments for remote command execution in Jenkins pipelines.
+        Each environment contains a group of hosts with shared SSH credentials.
+      </p>
+      
+      <!-- Current environments summary -->
+      <j:set var="config" value="${it.configuration}" />
+      
+      <f:section title="Current Environments">
+        <j:choose>
+          <j:when test="${config.environments.size() == 0}">
+            <p><em>No SSH environments configured yet.</em></p>
+          </j:when>
+          <j:otherwise>
+            <table class="jenkins-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>Environment</th>
+                  <th>Hosts</th>
+                  <th>Username</th>
+                  <th>SSH Credential</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <j:forEach var="env" items="${config.environments}">
+                  <tr>
+                    <td><strong>${env.name}</strong></td>
+                    <td>
+                      <j:forEach var="host" items="${env.hosts}">
+                        ${host}<br/>
+                      </j:forEach>
+                    </td>
+                    <td>${env.username}:${env.port}</td>
+                    <td>${env.sshCredentialId}</td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${env.valid}">
+                          <span style="color: green;">✓ Valid</span>
+                        </j:when>
+                        <j:otherwise>
+                          <span style="color: red;">✗ Invalid</span>
+                        </j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>
+                      <input type="button" value="Test" class="jenkins-button"
+                             onclick="testEnvironment('${env.name}')" />
+                    </td>
+                  </tr>
+                </j:forEach>
+              </tbody>
+            </table>
+          </j:otherwise>
+        </j:choose>
+      </f:section>
+      
+      <!-- Configuration form -->
+      <f:form method="post" action="configSubmit">
+        
+        <f:section title="Environment Configuration">
+          
+          <f:entry title="SSH Environments" field="environments">
+            <f:repeatable var="environment" items="${config.environments}" noAddButton="false" minimum="0">
+              
+              <table width="100%" style="border: 1px solid #ddd; margin-bottom: 10px; padding: 10px;">
+                <tr>
+                  <td colspan="4" style="background-color: #f5f5f5; font-weight: bold; padding: 5px;">
+                    Environment Configuration
+                  </td>
+                </tr>
+                <tr>
+                  <td width="25%">
+                    <f:entry title="Environment Name" field="name">
+                      <f:textbox value="${environment.name}" placeholder="e.g., dev, staging, prod" />
+                    </f:entry>
+                  </td>
+                  <td width="25%">
+                    <f:entry title="SSH Username" field="username">
+                      <f:textbox value="${environment.username}" default="root" />
+                    </f:entry>
+                  </td>
+                  <td width="15%">
+                    <f:entry title="SSH Port" field="port">
+                      <f:number value="${environment.port}" default="22" />
+                    </f:entry>
+                  </td>
+                  <td width="25%">
+                    <f:entry title="SSH Credentials" field="sshCredentialId">
+                      <c:select context="/jenkins" includeUser="false" value="${environment.sshCredentialId}" />
+                    </f:entry>
+                  </td>
+                  <td width="10%">
+                    <f:entry title="">
+                      <div align="right">
+                        <f:repeatableDeleteButton />
+                      </div>
+                    </f:entry>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="5">
+                    <f:entry title="Hosts (one per line)" field="hosts">
+                      <f:textarea value="${environment.hosts.join('\n')}" rows="3" 
+                                  placeholder="vm-dev1.company.com&#10;vm-dev2.company.com&#10;192.168.1.100" />
+                    </f:entry>
+                  </td>
+                </tr>
+              </table>
+              
+            </f:repeatable>
+          </f:entry>
+          
+        </f:section>
+        
+        <f:bottomButtonBar>
+          <f:submit value="Save Configuration" />
+          <f:apply />
+        </f:bottomButtonBar>
+        
+      </f:form>
+      
+      <!-- Usage examples -->
+      <f:section title="Pipeline Usage Examples">
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px;">
+          
+          <h4>Basic Usage:</h4>
+          <pre>
+sshHost('dev') {
+    sh 'hostname'
+    sh 'uptime'
+    sh 'systemctl status myapp'
+}
+          </pre>
+          
+          <h4>Parallel Execution:</h4>
+          <pre>
+parallel {
+    stage('Deploy Dev') {
+        steps {
+            sshHost('dev') {
+                sh './deploy.sh'
+            }
+        }
+    }
+    stage('Deploy Staging') {
+        steps {
+            sshHost('staging') {
+                sh './deploy.sh'
+            }
+        }
+    }
+}
+          </pre>
+          
+          <h4>Conditional Deployment:</h4>
+          <pre>
+script {
+    if (env.BRANCH_NAME == 'main') {
+        sshHost('production') {
+            sh 'docker-compose up -d'
+        }
+    } else {
+        sshHost('staging') {
+            sh 'docker-compose up -d'
+        }
+    }
+}
+          </pre>
+          
+        </div>
+      </f:section>
+      
+      <!-- Test results area -->
+      <div id="testResults" style="margin-top: 20px; padding: 10px; border-radius: 5px; display: none;">
+        <h4>Test Results:</h4>
+        <pre id="testOutput"></pre>
+      </div>
+      
+    </l:main-panel>
+    
+    <!-- JavaScript for testing -->
+    <script type="text/javascript">
+      function testEnvironment(environmentName) {
+        var resultsDiv = document.getElementById('testResults');
+        var outputPre = document.getElementById('testOutput');
+        
+        // Show loading
+        resultsDiv.style.display = 'block';
+        resultsDiv.style.backgroundColor = '#fff3cd';
+        outputPre.textContent = 'Testing environment "' + environmentName + '"...';
+        
+        // Make AJAX call
+        fetch('testEnvironment?environmentName=' + encodeURIComponent(environmentName))
+          .then(response => response.text())
+          .then(result => {
+            if (result.startsWith('Success:')) {
+              resultsDiv.style.backgroundColor = '#d4edda';
+            } else {
+              resultsDiv.style.backgroundColor = '#f8d7da';
+            }
+            outputPre.textContent = result;
+          })
+          .catch(error => {
+            resultsDiv.style.backgroundColor = '#f8d7da';
+            outputPre.textContent = 'Error testing environment: ' + error;
+          });
+      }
+    </script>
+    
+  </l:layout>
+  
+</j:jelly>
