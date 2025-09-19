@@ -1,0 +1,77 @@
+package io.jenkins.plugins.pulsar.environmentacl;
+
+import hudson.Extension;
+import io.jenkins.plugins.pulsar.environmentacl.model.ACLRule;
+import io.jenkins.plugins.pulsar.environmentacl.model.EnvironmentGroup;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import jenkins.model.GlobalConfiguration;
+import net.sf.json.JSONObject;
+import org.jenkinsci.Symbol;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.StaplerRequest;
+
+@Extension
+@Symbol("environmentACL")
+public class EnvironmentACLGlobalConfiguration extends GlobalConfiguration {
+    private List<EnvironmentGroup> environmentGroups = new ArrayList<>();
+    private List<ACLRule> aclRules = new ArrayList<>();
+
+    public EnvironmentACLGlobalConfiguration() {
+        load();
+    }
+
+    public static EnvironmentACLGlobalConfiguration get() {
+        return GlobalConfiguration.all().get(EnvironmentACLGlobalConfiguration.class);
+    }
+
+    // Environment Groups
+    public List<EnvironmentGroup> getEnvironmentGroups() {
+        return environmentGroups != null ? environmentGroups : new ArrayList<>();
+    }
+
+    @DataBoundSetter
+    public void setEnvironmentGroups(List<EnvironmentGroup> environmentGroups) {
+        this.environmentGroups = environmentGroups != null ? environmentGroups : new ArrayList<>();
+        save();
+    }
+
+    // ACL Rules
+    public List<ACLRule> getAclRules() {
+        return aclRules != null ? aclRules : new ArrayList<>();
+    }
+
+    @DataBoundSetter
+    public void setAclRules(List<ACLRule> aclRules) {
+        this.aclRules = aclRules != null ? aclRules : new ArrayList<>();
+        save();
+    }
+
+    // Utility methods
+    public List<String> getAllEnvironments() {
+        return getEnvironmentGroups().stream()
+                .flatMap(group -> group.getEnvironments().stream())
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    public EnvironmentGroup getEnvironmentGroupForEnvironment(String environment) {
+        return getEnvironmentGroups().stream()
+                .filter(group -> group.getEnvironments().contains(environment))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public String getVaultCredentialId(String environment, String vaultId) {
+        EnvironmentGroup group = getEnvironmentGroupForEnvironment(environment);
+        return group != null ? group.getVaultCredentialId(vaultId) : null;
+    }
+
+    @Override
+    public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
+        req.bindJSON(this, json);
+        save();
+        return true;
+    }
+}

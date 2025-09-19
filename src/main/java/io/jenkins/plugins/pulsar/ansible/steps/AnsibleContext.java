@@ -1,0 +1,508 @@
+package io.jenkins.plugins.pulsar.ansible.steps;
+
+import hudson.Launcher;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import io.jenkins.plugins.pulsar.ansible.AnsibleProjectsGlobalConfiguration;
+import io.jenkins.plugins.pulsar.ansible.model.AnsibleProject;
+import io.jenkins.plugins.pulsar.ansible.model.AnsibleVault;
+import io.jenkins.plugins.pulsar.ansible.service.AnsibleEnvironmentService;
+import io.jenkins.plugins.pulsar.shared.LaunchHelper;
+import io.jenkins.plugins.pulsar.sharedcontainer.service.ContainerManager;
+import io.jenkins.plugins.pulsar.sharedcontainer.steps.SharedContainerStep;
+import io.jenkins.plugins.pulsar.sshenv.service.SshAgent;
+import java.io.Serializable;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+
+/**
+ * Manages Ansible project execution environment with SSH agent, vault files, and project setup.
+ * Uses singleton pattern with reference counting similar to ContainerManager.
+ */
+public class AnsibleContext implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    // Static registry of active contexts per node
+    private static final Map<String, AnsibleContext> activeContexts = new ConcurrentHashMap<>();
+
+    private final String projectId;
+    private final Map<String, String> version;
+    private final AnsibleProject project;
+    private final String projectRoot;
+    private final String nodeName;
+    private final String contextKey;
+
+    // Managed resources
+    private ContainerManager container;
+    private SshAgent sshAgent;
+    private String vaultDir;
+    private List<String> loadedSshCredentialIds;
+    private final Map<String, String> setupVaultCredentials;
+
+    // Lifecycle management
+    private int referenceCount = 1;
+    private volatile boolean isKilled = false;
+    private boolean initialized = false;
+
+    // Services
+    private final transient AnsibleEnvironmentService envService;
+
+    private AnsibleContext(String projectId, Map<String, String> version, AnsibleProject project, String nodeName) {
+        this.projectId = projectId;
+        this.version = version;
+        this.project = project;
+        this.nodeName = nodeName;
+        this.envService = new AnsibleEnvironmentService();
+        this.loadedSshCredentialIds = new ArrayList<>();
+        this.setupVaultCredentials = new HashMap<>();
+
+        // Calculate project root
+        String sanitizedVersion = version.get("ref").replaceAll("[^a-zA-Z0-9\\-\\.]", "_");
+        String sanitizedType = version.get("type").replaceAll("[^a-zA-Z0-9\\-]", "_");
+        this.projectRoot = "/ansible/projects/" + projectId + "/" + sanitizedType + "/" + sanitizedVersion;
+
+        // Create cache key
+        this.contextKey = nodeName + ":" + projectId + ":" + version.get("ref") + ":" + version.get("type");
+    }
+
+    /** Get or create cached AnsibleContext - similar to ContainerManager.getOrCreate */
+    public static AnsibleContext getOrCreate(
+            String projectId, Map<String, String> version, StepContext stepContext, List<String> containerOptions)
+            throws Exception {
+
+        TaskListener listener = stepContext.get(TaskListener.class);
+        Launcher launcher = stepContext.get(Launcher.class);
+
+        // Find the project
+        AnsibleProjectsGlobalConfiguration config = AnsibleProjectsGlobalConfiguration.get();
+        AnsibleProject project = config.getProjectById(projectId);
+
+        if (project == null) {
+            throw new IllegalArgumentException("Ansible project not found: " + projectId);
+        }
+
+        if (version == null || version.get("ref") == null || version.get("type") == null) {
+            throw new IllegalArgumentException("Version information required (ref and type)");
+        }
+
+        // Get node name
+        String nodeName = LaunchHelper.getNodeName(stepContext);
+        String contextKey = nodeName + ":" + projectId + ":" + version.get("ref") + ":" + version.get("type");
+
+        synchronized (AnsibleContext.class) {
+            AnsibleContext existing = activeContexts.get(contextKey);
+            if (existing != null && !existing.isKilled && existing.isValid(launcher, listener)) {
+                existing.referenceCount++;
+                listener.getLogger().println("Reusing existing Ansible context: " + projectId);
+                return existing;
+            }
+
+            // Create new context
+            listener.getLogger().println("Creating new Ansible context for: " + projectId);
+            AnsibleContext context = new AnsibleContext(projectId, version, project, nodeName);
+
+            // Initialize everything
+            context.initialize(stepContext, containerOptions, launcher, listener);
+
+            activeContexts.put(contextKey, context);
+            listener.getLogger().println("Ansible context ready: " + projectId);
+
+            return context;
+        }
+    }
+
+    /** Initialize the full Ansible environment */
+    private void initialize(
+            StepContext stepContext, List<String> containerOptions, Launcher launcher, TaskListener listener)
+            throws Exception {
+
+        if (initialized) return;
+
+        Run<?, ?> run = stepContext.get(Run.class);
+
+        listener.getLogger().println("Setting up Ansible environment...");
+
+        // 1. Create/get shared container using existing system
+        this.container = createOrGetContainer(containerOptions, launcher, listener);
+
+        // 2. Setup SSH agent and keys
+        setupSshAgent(run, launcher, listener);
+
+        // 3. Setup vault files
+        setupVaultFiles(run, launcher, listener);
+
+        // 4. Setup project (checkout, ansible.cfg)
+        setupProject(launcher, listener);
+
+        initialized = true;
+        listener.getLogger().println("Ansible environment ready");
+    }
+
+    /** Create or get shared container */
+    private ContainerManager createOrGetContainer(
+            List<String> containerOptions, Launcher launcher, TaskListener listener) throws Exception {
+
+        SharedContainerStep containerStep = createContainerStep(containerOptions);
+
+        return ContainerManager.getOrCreate(nodeName, project.getExecEnv(), containerStep, launcher, listener);
+    }
+
+    /** Setup SSH agent with all required keys */
+    private void setupSshAgent(Run<?, ?> run, Launcher launcher, TaskListener listener) throws Exception {
+        listener.getLogger().println("Setting up SSH agent...");
+
+        // Get SSH agent singleton
+        this.sshAgent = SshAgent.getInstance(nodeName);
+        sshAgent.start(launcher, listener);
+
+        // Get all SSH credential IDs for this project
+        this.loadedSshCredentialIds = getAllSshCredentialIds();
+
+        if (!loadedSshCredentialIds.isEmpty()) {
+            sshAgent.loadKeys(loadedSshCredentialIds, run, launcher, listener);
+
+            // Set SSH_AUTH_SOCK in container environment
+            container.setEnv("SSH_AUTH_SOCK", sshAgent.getSocketPath());
+
+            listener.getLogger().println("SSH agent ready with " + loadedSshCredentialIds.size() + " keys");
+        } else {
+            listener.getLogger().println("No SSH keys configured for this project");
+        }
+    }
+
+    /** Setup vault password files */
+    private void setupVaultFiles(Run<?, ?> run, Launcher launcher, TaskListener listener) throws Exception {
+        listener.getLogger().println("Setting up vault files...");
+
+        this.vaultDir = "/ansible/vaults";
+        container.execute("mkdir -p " + vaultDir, launcher, listener);
+
+        // Setup vault files for all configured vaults
+        for (AnsibleVault vault : project.getVaults()) {
+            String credentialId = vault.getCredentialId();
+            if (credentialId != null && !credentialId.trim().isEmpty()) {
+                setupVaultFile(vault.getName(), credentialId, run, launcher, listener);
+                setupVaultCredentials.put(vault.getName(), credentialId);
+            }
+        }
+
+        if (!setupVaultCredentials.isEmpty()) {
+            listener.getLogger().println("Vault files ready: " + setupVaultCredentials.keySet());
+        }
+    }
+
+    /** Setup a single vault file */
+    private void setupVaultFile(
+            String vaultName, String credentialId, Run<?, ?> run, Launcher launcher, TaskListener listener)
+            throws Exception {
+
+        // Get credential
+        String vaultPassword = getSecretCredential(credentialId, run);
+        if (vaultPassword == null) {
+            listener.getLogger().println("Warning: Vault credential not found: " + credentialId);
+            return;
+        }
+
+        String vaultFilePath = vaultDir + "/" + vaultName + ".txt";
+
+        // Write vault password to file securely
+        String writeCmd = String.format(
+                "cat > %s << 'EOF'\n%s\nEOF && chmod 600 %s", vaultFilePath, vaultPassword, vaultFilePath);
+
+        container.execute(writeCmd, launcher, listener);
+        listener.getLogger().println("Vault file created: " + vaultName);
+    }
+
+    /** Setup project files (checkout, ansible.cfg) */
+    private void setupProject(Launcher launcher, TaskListener listener) throws Exception {
+        listener.getLogger().println("Setting up project files...");
+
+        // Create project directory
+        container.execute("mkdir -p " + projectRoot, launcher, listener);
+
+        // Checkout project
+        checkoutProject(launcher, listener);
+
+        // Generate and write ansible.cfg
+        setupAnsibleConfig(launcher, listener);
+
+        listener.getLogger().println("Project ready at " + projectRoot);
+    }
+
+    /** Checkout project from repository */
+    private void checkoutProject(Launcher launcher, TaskListener listener) throws Exception {
+        // Simple git clone - in real implementation you'd integrate with your RepoCacheManager
+        String checkoutCmd = String.format(
+                "cd %s && git clone %s . || (git fetch && git reset --hard origin/%s)",
+                projectRoot, project.getRepository(), version.get("ref"));
+
+        container.execute(checkoutCmd, launcher, listener);
+        listener.getLogger().println("Project checked out: " + project.getRepository() + "@" + version.get("ref"));
+    }
+
+    /** Setup ansible.cfg file */
+    private void setupAnsibleConfig(Launcher launcher, TaskListener listener) throws Exception {
+        String ansibleConfig = project.getAnsibleConfig();
+
+        String configCmd = String.format("cat > %s/ansible.cfg << 'EOF'\n%s\nEOF", projectRoot, ansibleConfig);
+
+        container.execute(configCmd, launcher, listener);
+        listener.getLogger().println("ansible.cfg configured");
+    }
+
+    /** Execute ansible-playbook with all credentials available */
+    public int runPlaybook(
+            String playbook,
+            String envName,
+            Map<String, Object> extraVars,
+            String options,
+            String user,
+            Launcher launcher,
+            TaskListener listener)
+            throws Exception {
+
+        ensureInitialized();
+
+        if (isKilled) {
+            throw new IllegalStateException("AnsibleContext has been killed");
+        }
+
+        listener.getLogger().println("Running playbook: " + playbook + " on environment: " + envName);
+
+        // Build command
+        List<String> commandParts = new ArrayList<>();
+        commandParts.add("cd " + projectRoot);
+
+        // Build ansible-playbook command
+        List<String> ansibleCmd = new ArrayList<>();
+        ansibleCmd.add("ansible-playbook " + playbook);
+        ansibleCmd.add("-u " + (user != null ? user : "root"));
+        ansibleCmd.add("-i '" + getInventoryPath(envName) + "'");
+
+        // Add vault IDs
+        for (String vaultName : setupVaultCredentials.keySet()) {
+            ansibleCmd.add("--vault-id " + vaultName + "@" + vaultDir + "/" + vaultName + ".txt");
+        }
+
+        // Add extra vars
+        ansibleCmd.add("-e 'running_from_jenkins=true'");
+        if (extraVars != null) {
+            for (Map.Entry<String, Object> var : extraVars.entrySet()) {
+                String escapedValue = var.getValue().toString().replaceAll("\"", "\\\\\"");
+                ansibleCmd.add("-e '" + var.getKey() + "=" + escapedValue + "'");
+            }
+        }
+
+        if (options != null && !options.trim().isEmpty()) {
+            ansibleCmd.add(options);
+        }
+
+        commandParts.add(String.join(" ", ansibleCmd));
+
+        String fullCmd = String.join(" && ", commandParts);
+
+        return container.execute(fullCmd, "root", launcher, listener);
+    }
+
+    /** Execute a command in the project environment */
+    public int executeCommand(String command, Launcher launcher, TaskListener listener) throws Exception {
+        ensureInitialized();
+
+        if (isKilled) {
+            throw new IllegalStateException("AnsibleContext has been killed");
+        }
+
+        String fullCmd = "cd " + projectRoot + " && " + command;
+        if (sshAgent != null && sshAgent.getSocketPath() != null) {
+            fullCmd = "export SSH_AUTH_SOCK=" + sshAgent.getSocketPath() + " && " + fullCmd;
+        }
+
+        return container.execute(fullCmd, "root", launcher, listener);
+    }
+
+    /** Release reference - similar to ContainerManager.release */
+    public void release(boolean cleanup, Launcher launcher, TaskListener listener) {
+        synchronized (AnsibleContext.class) {
+            referenceCount--;
+
+            if (referenceCount <= 0 && cleanup) {
+                listener.getLogger().println("Cleaning up Ansible context: " + projectId);
+                kill(launcher, listener);
+                activeContexts.remove(contextKey);
+            } else if (referenceCount <= 0) {
+                listener.getLogger().println("Keeping Ansible context alive: " + projectId);
+            }
+        }
+    }
+
+    /** Full cleanup */
+    private void kill(Launcher launcher, TaskListener listener) {
+        if (isKilled) return;
+
+        try {
+            listener.getLogger().println("Cleaning up Ansible context: " + projectId);
+
+            // 1. Cleanup our resources first
+            if (container != null) {
+                // Remove vault files
+                try {
+                    container.execute("rm -rf " + vaultDir, launcher, listener);
+                } catch (Exception e) {
+                    listener.getLogger().println("Warning: Failed to remove vault files: " + e.getMessage());
+                }
+
+                // Remove project files
+                try {
+                    container.execute("rm -rf " + projectRoot, launcher, listener);
+                } catch (Exception e) {
+                    listener.getLogger().println("Warning: Failed to remove project files: " + e.getMessage());
+                }
+            }
+
+            // 2. Release SSH keys
+            if (sshAgent != null && !loadedSshCredentialIds.isEmpty()) {
+                sshAgent.releaseKeys(loadedSshCredentialIds, listener);
+            }
+
+            // 3. Release container (this will call ContainerManager.release)
+            if (container != null) {
+                container.release(true, launcher, listener); // cleanup=true
+            }
+
+            listener.getLogger().println("Ansible context cleaned up: " + projectId);
+
+        } catch (Exception e) {
+            listener.getLogger()
+                    .println("Warning: Failed to cleanup Ansible context " + projectId + ": " + e.getMessage());
+        } finally {
+            isKilled = true;
+        }
+    }
+
+    /** Check if context is still valid */
+    private boolean isValid(Launcher launcher, TaskListener listener) {
+        return !isKilled && container != null && !container.isKilled();
+    }
+
+    /** Ensure context is initialized */
+    private void ensureInitialized() throws Exception {
+        if (!initialized) {
+            throw new IllegalStateException("AnsibleContext not properly initialized");
+        }
+    }
+
+    // Helper methods
+
+    /** Get inventory path for environment */
+    public String getInventoryPath(String envName) throws Exception {
+        return envService.getInventoryPath(projectId, envName);
+    }
+
+    /** Get all SSH credential IDs for this project */
+    private List<String> getAllSshCredentialIds() {
+        Set<String> credentialIds = new HashSet<>();
+
+        // Get SSH credentials for all environments this project can access
+        List<String> accessibleEnvs = envService.getAccessibleEnvironments(projectId);
+        for (String envName : accessibleEnvs) {
+            String sshCredentialId = envService.getSshCredentialForEnvironment(projectId, envName);
+            if (sshCredentialId != null && !sshCredentialId.trim().isEmpty()) {
+                credentialIds.add(sshCredentialId);
+            }
+        }
+
+        return new ArrayList<>(credentialIds);
+    }
+
+    /** Create SharedContainerStep for existing container system */
+    private SharedContainerStep createContainerStep(List<String> containerOptions) {
+        SharedContainerStep step = new SharedContainerStep(project.getExecEnv());
+
+        List<String> finalOptions = new ArrayList<>();
+        finalOptions.add("-v /repos/cache:/repos/cache:rw,z");
+
+        // Mount SSH agent socket if available
+        if (sshAgent != null && sshAgent.getSocketPath() != null) {
+            String socketDir = sshAgent.getSocketPath()
+                    .substring(0, sshAgent.getSocketPath().lastIndexOf('/'));
+            finalOptions.add("-v " + socketDir + ":" + socketDir + ":rw");
+        }
+
+        if (containerOptions != null) {
+            finalOptions.addAll(containerOptions);
+        }
+
+        step.setOptions(String.join(" ", finalOptions));
+        return step;
+    }
+
+    /** Get secret credential value */
+    private String getSecretCredential(String credentialId, Run<?, ?> run) {
+        try {
+            // This would need proper implementation with Jenkins credentials binding
+            // For now, return placeholder
+            return "vault-password-placeholder";
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Cleanup all contexts */
+    public static void cleanupAll(Launcher launcher, TaskListener listener) {
+        synchronized (AnsibleContext.class) {
+            List<AnsibleContext> contexts = new ArrayList<>(activeContexts.values());
+
+            for (AnsibleContext context : contexts) {
+                try {
+                    context.kill(launcher, listener);
+                } catch (Exception e) {
+                    listener.getLogger()
+                            .println("Warning: Failed to cleanup context " + context.projectId + ": " + e.getMessage());
+                }
+            }
+            activeContexts.clear();
+        }
+    }
+
+    // Getters
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public Map<String, String> getVersion() {
+        return version;
+    }
+
+    public AnsibleProject getProject() {
+        return project;
+    }
+
+    public String getProjectRoot() {
+        return projectRoot;
+    }
+
+    public String getNodeName() {
+        return nodeName;
+    }
+
+    public ContainerManager getContainer() {
+        return container;
+    }
+
+    public SshAgent getSshAgent() {
+        return sshAgent;
+    }
+
+    public int getReferenceCount() {
+        return referenceCount;
+    }
+
+    public boolean isKilled() {
+        return isKilled;
+    }
+
+    public Set<String> getSetupVaultNames() {
+        return setupVaultCredentials.keySet();
+    }
+}
