@@ -68,6 +68,7 @@
       <groupId>com.github.mwiede</groupId>
       <artifactId>jsch</artifactId>
       <version>2.27.2</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>io.jenkins</groupId>
@@ -177,7 +178,7 @@
         <configuration>
           <compatibleSinceVersion>${jenkins.version}</compatibleSinceVersion>
           <systemProperties>
-            <!-- <casc.jenkins.config>${project.basedir}/src/test/resources/jenkins-config</casc.jenkins.config> -->
+            <casc.jenkins.config>${project.basedir}/src/test/resources/jenkins-config</casc.jenkins.config>
             <io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>5000</io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>
             <jenkins.install.runSetupWizard>false</jenkins.install.runSetupWizard>
             <hudson.model.ParametersAction.keepUndefinedParameters>false</hudson.model.ParametersAction.keepUndefinedParameters>
