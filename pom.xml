@@ -36,8 +36,6 @@
         <jenkins.version>2.516.3</jenkins.version>
         <bom.artifactId>bom-2.492.x</bom.artifactId>
         <bom.version>5422.v0fce72a_b_b_8cf</bom.version>
-        <mavenHpiPlugin.version>3.65</mavenHpiPlugin.version>
-        <prism-api.version>1.30.0-1</prism-api.version>
 
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
         <spotless.check.skip>true</spotless.check.skip>
@@ -101,6 +99,7 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
         </dependency>
+
         <!-- Pipeline and workflow support -->
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>

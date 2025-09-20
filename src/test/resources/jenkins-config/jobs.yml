@@ -1,10 +1,11 @@
 jobs:
   - script: >
       pipelineJob('ansible-job') {
-          definition {
-            cps {
-              script('''@Library('pulsar-library') _
+        definition {
+          cps {
+            script('''@Library('pulsar-library') _
         test_ansible_step()'''.stripIndent())
-              sandbox()
+            sandbox()
           }
+        }
       }
