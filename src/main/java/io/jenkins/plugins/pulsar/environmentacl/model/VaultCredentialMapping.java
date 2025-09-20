@@ -1,14 +1,14 @@
 package io.jenkins.plugins.pulsar.environmentacl.model;
 
 import hudson.Extension;
-import hudson.model.AbstractDescribableImpl;
+import hudson.model.Describable;
 import hudson.model.Descriptor;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class VaultCredentialMapping extends AbstractDescribableImpl<VaultCredentialMapping> {
-    private String vaultId;
-    private String credentialId;
+public class VaultCredentialMapping implements Describable<VaultCredentialMapping> {
+    private final String vaultId;
+    private final String credentialId;
     private String description;
 
     @DataBoundConstructor

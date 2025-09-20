@@ -123,7 +123,6 @@ public class SharedContainerStep extends Step implements Serializable {
             StepContext context = getContext();
             TaskListener listener = context.get(TaskListener.class);
             Launcher launcher = context.get(Launcher.class);
-            FilePath workspace = context.get(FilePath.class);
 
             // Get the actual Jenkins node name properly
             String nodeName = LaunchHelper.getNodeName(context);
@@ -138,8 +137,8 @@ public class SharedContainerStep extends Step implements Serializable {
                 // Store container in context for containerExec steps
                 context.newBodyInvoker()
                         .withContext(container)
-                        .withCallback(new ContainerCallback(container, step.getCleanup()))
-                        .start();
+                        .start()
+                        .get();
                 return false;
             } catch (Exception e) {
                 container.release(step.getCleanup(), launcher, listener);
@@ -149,37 +148,5 @@ public class SharedContainerStep extends Step implements Serializable {
 
         @Override
         public void stop(Throwable cause) throws Exception {}
-    }
-
-    static class ContainerCallback extends org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback {
-        private final ContainerManager container;
-        private final boolean keepContainer;
-
-        ContainerCallback(ContainerManager container, boolean keepContainer) {
-            this.container = container;
-            this.keepContainer = keepContainer;
-        }
-
-        @Override
-        public void onSuccess(StepContext context, Object result) {
-            cleanup(context);
-            context.onSuccess(result);
-        }
-
-        @Override
-        public void onFailure(StepContext context, Throwable t) {
-            cleanup(context);
-            context.onFailure(t);
-        }
-
-        private void cleanup(StepContext context) {
-            try {
-                TaskListener listener = context.get(TaskListener.class);
-                Launcher launcher = context.get(Launcher.class);
-
-            } catch (Exception e) {
-                // Log but don't fail
-            }
-        }
     }
 }
