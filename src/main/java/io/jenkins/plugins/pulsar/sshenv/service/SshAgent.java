@@ -264,7 +264,7 @@ public class SshAgent implements Serializable {
             listener.getLogger().println("Stopping SSH agent: " + agentPid);
 
             // Kill agent
-            List<String> killCmd = Arrays.asList("kill", agentPid);
+            List<String> killCmd = Arrays.asList("/bin/sh", "-c", "kill", agentPid);
             LaunchHelper.executeQuietlyDiscardOutput(launcher, killCmd, 5, listener);
 
             // Cleanup socket directory

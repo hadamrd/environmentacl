@@ -3,12 +3,16 @@ package io.jenkins.plugins.pulsar.ansible.model;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
+
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> {
+public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private String id;
     private String repository;
     private String execEnv;

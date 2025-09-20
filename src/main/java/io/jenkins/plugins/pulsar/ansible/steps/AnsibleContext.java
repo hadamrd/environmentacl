@@ -25,7 +25,7 @@ public class AnsibleContext implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // Static registry of active contexts per node
-    private static final transient Map<String, AnsibleContext> activeContexts = new ConcurrentHashMap<>();
+    private static final Map<String, AnsibleContext> activeContexts = new ConcurrentHashMap<>();
 
     private final String projectId;
     private final Map<String, String> version;
@@ -328,8 +328,6 @@ public class AnsibleContext implements Serializable {
         if (isKilled) return;
 
         try {
-            listener.getLogger().println("Cleaning up Ansible context: " + projectId);
-
             // 2. Release SSH keys
             if (sshAgent != null) {
                 sshAgent.stop(launcher, listener);

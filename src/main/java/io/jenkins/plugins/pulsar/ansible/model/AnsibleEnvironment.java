@@ -3,12 +3,16 @@ package io.jenkins.plugins.pulsar.ansible.model;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
+
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class AnsibleEnvironment extends AbstractDescribableImpl<AnsibleEnvironment> {
+public class AnsibleEnvironment extends AbstractDescribableImpl<AnsibleEnvironment> implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private String group;
     private String description;
     private String inventoryPath;
