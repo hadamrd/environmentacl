@@ -1,0 +1,14 @@
+unclassified:
+  environmentACL:
+    environmentGroups:
+      - name: "production"
+        description: "Production environments"
+        sshCredentialId: "prod-ssh-key"
+        environments:
+          - "prod-eu"
+        tags:
+          - "production"
+          - "critical"
+        vaultCredentials:
+          - vaultId: "prod-vault"
+            credentialId: "prod-ansible-key"

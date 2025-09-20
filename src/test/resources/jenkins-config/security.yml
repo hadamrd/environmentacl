@@ -6,99 +6,23 @@ jenkins:
     local:
       allowsSignup: false
       users:
-        - id: "dev"
-          password: "dev123"
         - id: "sre"
           password: "sre123"
-        - id: "it"
-          password: "it123"
 
   authorizationStrategy:
     globalMatrix:
       entries:
         - user:
-            name: "dev"
-            permissions:
-              - "Overall/Read"
-              - "Job/Build"
-              - "Job/Read"
-        - user:
             name: "sre"
             permissions:
               - "Overall/Administer"
-        - user:
-            name: "it"
-            permissions:
-              - "Overall/Read"
-              - "Job/Build"
-              - "Job/Read"
 
 unclassified:
   environmentACL:
-    environmentGroups:
-      - name: "development"
-        description: "Development environments for feature development and testing"
-        sshCredentialId: "dev-ssh-key"
-        environments:
-          - "dev1"
-          - "dev2"
-          - "dev3"
-        tags:
-          - "dev"
-        vaultCredentials:
-          - vaultId: "dev-vault"
-            credentialId: "dev-vault-key"
-  
-      - name: "release"
-        description: "Release and staging environments"
-        sshCredentialId: "release-ssh-key"
-        environments:
-          - "release1"
-          - "release2"
-        tags:
-          - "staging"
-          - "release"
-        vaultCredentials:
-          - vaultId: "staging-vault"
-            credentialId: "release-vault-key"
-      
-      - name: "production"
-        description: "Production environments"
-        sshCredentialId: "prod-ssh-key"
-        environments:
-          - "prod-us-east"
-          - "prod-us-west"
-          - "prod-eu"
-        tags:
-          - "production"
-          - "critical"
-        vaultCredentials:
-          - vaultId: "prod-vault"
-            credentialId: "prod-vault-token"
-          - vaultId: "prod-secrets"
-            credentialId: "prod-secrets-token"
-    
     aclRules:
-      # 1. DEVELOPERS - Can only build in development environments
-      - name: "developers-dev-access"
-        type: "allow"
-        priority: 200
-        jobs: ["*"]
-        environmentGroups: ["development"]
-        users: ["dev"]
-        
-      # 2. SRE - Can deploy to dev and release environments
       - name: "sre-dev-release-access"
         type: "allow"
         priority: 300
         jobs: ["*"]
-        environmentGroups: ["development", "release"]
-        users: ["sre"]
-        
-      # 3. PRODUCTION OPS - Can only deploy to production
-      - name: "prod-ops-production-access"
-        type: "allow"
-        priority: 400
-        jobs: ["*"]
         environmentGroups: ["production"]
-        users: ["it"]
+        users: ["sre"]

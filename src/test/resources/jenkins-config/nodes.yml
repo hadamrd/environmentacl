@@ -1,0 +1,14 @@
+jenkins:
+  nodes:
+  - permanent:
+      labelString: "dev"
+      launcher:
+        inbound:
+          workDirSettings:
+            disabled: false
+            failIfWorkDirIsMissing: false
+            internalDir: "remoting"
+      name: "agent"
+      numExecutors: 4
+      remoteFS: "/home/jenkins/agent"
+      retentionStrategy: "always"

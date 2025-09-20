@@ -1,0 +1,20 @@
+unclassified:
+  ansibleProjects:
+    projects:
+      - id: "ansible"
+        repository: "https://github.com/hadamrd/infra-ansible"
+        execEnv: "quay.io/ansible/ansible-runner:latest"
+        defaultBranch: "main"
+        environments:
+          - group: "prod-eu"
+            inventoryPath: "inventory/prod"
+        ansibleConfig: |
+          hostKeyChecking=False
+          timeout=30 
+          gathering=smart
+          pipelining=True
+          stdout_callback=yaml
+          become=True
+          becomeMethod=sudo
+          sshArgs="-o ControlMaster=auto"
+          logPath="/var/log/ansible.log"

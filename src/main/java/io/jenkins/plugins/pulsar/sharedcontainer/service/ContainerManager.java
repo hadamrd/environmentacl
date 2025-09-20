@@ -165,17 +165,6 @@ public class ContainerManager implements Serializable {
         return LaunchHelper.executeQuietly(launcher, dockerCmd, listener.getLogger(), 30, listener);
     }
 
-    /** Execute with SSH keys available - similar to Groovy withSshKeys */
-    public int executeWithSshKeys(String command, List<String> credentialIds, Launcher launcher, TaskListener listener)
-            throws Exception {
-        // This would integrate with SshAgent
-        // For now, placeholder that shows the pattern
-        Map<String, String> sshEnv = new HashMap<>();
-        // sshEnv.put("SSH_AUTH_SOCK", sshAgent.getSocketPath());
-
-        return execute(command, "root", sshEnv, launcher, listener);
-    }
-
     /** Set environment variable for this container instance */
     public void setEnv(String key, String value) {
         if (key != null && value != null) {

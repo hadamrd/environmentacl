@@ -7,6 +7,7 @@ import io.jenkins.plugins.pulsar.ansible.AnsibleProjectsGlobalConfiguration;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleProject;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleVault;
 import io.jenkins.plugins.pulsar.ansible.service.AnsibleEnvironmentService;
+import io.jenkins.plugins.pulsar.ansible.service.AnsiblePlaybookCommandBuilder;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
 import io.jenkins.plugins.pulsar.sharedcontainer.service.ContainerManager;
 import io.jenkins.plugins.pulsar.sharedcontainer.steps.SharedContainerStep;
@@ -268,40 +269,26 @@ public class AnsibleContext implements Serializable {
             throw new IllegalStateException("AnsibleContext has been killed");
         }
 
-        listener.getLogger().println("Running playbook: " + playbook + " on environment: " + envName);
+        // Use command builder for clean separation of concerns
+        AnsiblePlaybookCommandBuilder builder = new AnsiblePlaybookCommandBuilder()
+            .playbook(playbook)
+            .user(user != null ? user : "root")
+            .inventory(getInventoryPath(envName))
+            .projectRoot(projectRoot)
+            .extraVars(extraVars)
+            .options(options);
 
-        // Build command
-        List<String> commandParts = new ArrayList<>();
-        commandParts.add("cd " + projectRoot);
-
-        // Build ansible-playbook command
-        List<String> ansibleCmd = new ArrayList<>();
-        ansibleCmd.add("ansible-playbook " + playbook);
-        ansibleCmd.add("-u " + (user != null ? user : "root"));
-        ansibleCmd.add("-i '" + getInventoryPath(envName) + "'");
-
-        // Add vault IDs
+        // Add vault configurations
         for (String vaultName : setupVaultCredentials.keySet()) {
-            ansibleCmd.add("--vault-id " + vaultName + "@" + vaultDir + "/" + vaultName + ".txt");
+            builder.vault(vaultName, vaultDir + "/" + vaultName + ".txt");
         }
 
-        // Add extra vars
-        ansibleCmd.add("-e 'running_from_jenkins=true'");
-        if (extraVars != null) {
-            for (Map.Entry<String, Object> var : extraVars.entrySet()) {
-                String escapedValue = var.getValue().toString().replaceAll("\"", "\\\\\"");
-                ansibleCmd.add("-e '" + var.getKey() + "=" + escapedValue + "'");
-            }
-        }
+        // Log command summary
+        listener.getLogger().println("=== Executing Ansible Playbook ===");
+        listener.getLogger().println(builder.getSummary());
 
-        if (options != null && !options.trim().isEmpty()) {
-            ansibleCmd.add(options);
-        }
-
-        commandParts.add(String.join(" ", ansibleCmd));
-
-        String fullCmd = String.join(" && ", commandParts);
-
+        // Build and execute command
+        String fullCmd = builder.buildFullCommand();
         return container.execute(fullCmd, "root", launcher, listener);
     }
 
@@ -342,23 +329,6 @@ public class AnsibleContext implements Serializable {
 
         try {
             listener.getLogger().println("Cleaning up Ansible context: " + projectId);
-
-            // 1. Cleanup our resources first
-            if (container != null) {
-                // Remove vault files
-                try {
-                    container.execute("rm -rf " + vaultDir, launcher, listener);
-                } catch (Exception e) {
-                    listener.getLogger().println("Warning: Failed to remove vault files: " + e.getMessage());
-                }
-
-                // Remove project files
-                try {
-                    container.execute("rm -rf " + projectRoot, launcher, listener);
-                } catch (Exception e) {
-                    listener.getLogger().println("Warning: Failed to remove project files: " + e.getMessage());
-                }
-            }
 
             // 2. Release SSH keys
             if (sshAgent != null && !loadedSshCredentialIds.isEmpty()) {
