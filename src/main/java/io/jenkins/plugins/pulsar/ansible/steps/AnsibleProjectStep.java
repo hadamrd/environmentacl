@@ -8,11 +8,13 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 import org.jenkinsci.plugins.workflow.steps.*;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 public class AnsibleProjectStep extends Step implements Serializable {
+    private static final Logger LOGGER = Logger.getLogger(AnsibleProjectStep.class.getName());
     private static final long serialVersionUID = 1L;
 
     private final String projectId;
@@ -112,54 +114,18 @@ public class AnsibleProjectStep extends Step implements Serializable {
             listener.getLogger().println("Version: " + step.getVersion());
             listener.getLogger().println("Project Root: " + ansibleContext.getProjectRoot());
 
-            // Execute nested block with AnsibleContext available
-            // ContainerManager is available through ansibleContext.getContainer() if needed
-            context.newBodyInvoker()
-                    .withContext(ansibleContext)
-                    .withContext(ansibleContext.getContainer()) // Make container available for containerExec steps
-                    .withCallback(new AnsibleBodyInvoker(ansibleContext, step.isCleanup()))
-                    .start();
-
-            return null;
-        }
-    }
-
-    private static class AnsibleBodyInvoker extends BodyExecutionCallback {
-        private final AnsibleContext ansibleContext;
-        private final boolean cleanup;
-
-        AnsibleBodyInvoker(AnsibleContext ansibleContext, boolean cleanup) {
-            this.ansibleContext = ansibleContext;
-            this.cleanup = cleanup;
-        }
-
-        @Override
-        public void onSuccess(StepContext context, Object result) {
-            cleanup(context);
-            context.onSuccess(result);
-        }
-
-        @Override
-        public void onFailure(StepContext context, Throwable t) {
-            cleanup(context);
-            context.onFailure(t);
-        }
-
-        private void cleanup(StepContext context) {
-            TaskListener listener = null;
-            Launcher launcher = null;
-
             try {
-                listener = context.get(TaskListener.class);
-                launcher = context.get(Launcher.class);
+                Object result = context.newBodyInvoker()
+                        .withContext(ansibleContext)
+                        .withContext(ansibleContext.getContainer())
+                        .start()
+                        .get(); // Pattern synchrone simple
 
-                // Use AnsibleContext.release() which handles container + SSH + vault cleanup
-                ansibleContext.release(cleanup, launcher, listener);
-            } catch (Exception e) {
-                // Log but don't fail
-                if (listener != null) {
-                    listener.getLogger().println("Warning: Failed to cleanup Ansible context: " + e.getMessage());
-                }
+                return null;
+
+            } finally {
+                // Cleanup direct, pas besoin de callbacks
+                ansibleContext.release(step.isCleanup(), context.get(Launcher.class), listener);
             }
         }
     }

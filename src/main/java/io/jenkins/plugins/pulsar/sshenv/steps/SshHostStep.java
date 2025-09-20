@@ -11,7 +11,6 @@ import io.jenkins.plugins.pulsar.sshenv.model.SshEnvironment;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.Set;
-import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -105,39 +104,16 @@ public class SshHostStep extends Step implements Serializable {
                 throw new SshPluginException("Failed to establish SSH connection to " + step.getHost());
             }
 
-            // Execute the nested block with SSH context
-            context.newBodyInvoker()
-                    .withContext(sshContext) // make ssh session and utilities available to steps inside
-                    .withCallback(new SshBodyInvoker(sshContext, listener))
-                    .start();
+            try {
+                context.newBodyInvoker()
+                        .withContext(sshContext)
+                        .start()
+                        .get(); // Pattern synchrone pour propager les exceptions
 
-            return null;
-        }
-    }
+                return null;
 
-    private static class SshBodyInvoker extends BodyExecutionCallback {
-        private final SshContext sshContext;
-        private final transient TaskListener listener;
-
-        SshBodyInvoker(SshContext sshContext, TaskListener listener) {
-            this.sshContext = sshContext;
-            this.listener = listener;
-        }
-
-        @Override
-        public void onSuccess(StepContext context, Object result) {
-            cleanup();
-            context.onSuccess(result);
-        }
-
-        @Override
-        public void onFailure(StepContext context, Throwable t) {
-            cleanup();
-            context.onFailure(t);
-        }
-
-        private void cleanup() {
-            if (sshContext != null) {
+            } finally {
+                // Cleanup garanti même en cas d'exception
                 try {
                     sshContext.cleanup();
                 } catch (Exception e) {

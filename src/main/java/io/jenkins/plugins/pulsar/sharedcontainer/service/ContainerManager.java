@@ -162,7 +162,7 @@ public class ContainerManager implements Serializable {
                 .cmds(dockerCmd)
                 .stdout(listener.getLogger())
                 .stderr(listener.getLogger())
-                // .quiet(true)
+                .quiet(true)
                 .start()
                 .joinWithTimeout(300, TimeUnit.SECONDS, listener);
     }

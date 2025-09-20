@@ -271,12 +271,12 @@ public class AnsibleContext implements Serializable {
 
         // Use command builder for clean separation of concerns
         AnsiblePlaybookCommandBuilder builder = new AnsiblePlaybookCommandBuilder()
-            .playbook(playbook)
-            .user(user != null ? user : "root")
-            .inventory(getInventoryPath(envName))
-            .projectRoot(projectRoot)
-            .extraVars(extraVars)
-            .options(options);
+                .playbook(playbook)
+                .user(user != null ? user : "root")
+                .inventory(getInventoryPath(envName))
+                .projectRoot(projectRoot)
+                .extraVars(extraVars)
+                .options(options);
 
         // Add vault configurations
         for (String vaultName : setupVaultCredentials.keySet()) {

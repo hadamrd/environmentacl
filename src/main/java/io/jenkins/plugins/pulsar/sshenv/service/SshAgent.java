@@ -6,7 +6,6 @@ import hudson.Launcher;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
-
 import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.util.*;
@@ -44,8 +43,8 @@ public class SshAgent implements Serializable {
     private String socketDir;
 
     // Track loaded keys with reference counting
-    private transient final Map<String, Integer> loadedKeys = new ConcurrentHashMap<>();
-    private transient final ReentrantLock instanceLock = new ReentrantLock();
+    private final transient Map<String, Integer> loadedKeys = new ConcurrentHashMap<>();
+    private final transient ReentrantLock instanceLock = new ReentrantLock();
 
     private SshAgent(String nodeName) {
         this.nodeName = nodeName;
@@ -82,15 +81,14 @@ public class SshAgent implements Serializable {
                     "/bin/sh",
                     "-c",
                     String.format(
-                            "mkdir -p %s && chmod 700 %s && ssh-agent -s -a %s", 
-                            socketDir, socketDir, socketPath));
+                            "mkdir -p %s && chmod 700 %s && ssh-agent -s -a %s", socketDir, socketDir, socketPath));
 
             String agentOutput = LaunchHelper.executeAndCapture(launcher, startCmd, 30, listener);
 
             // Parse PID directly from output using regex
             Pattern pattern = Pattern.compile("SSH_AGENT_PID=(\\d+)");
             Matcher matcher = pattern.matcher(agentOutput);
-            
+
             if (matcher.find()) {
                 this.agentPid = matcher.group(1);
                 listener.getLogger().println("SSH agent started with PID: " + agentPid);
@@ -137,9 +135,9 @@ public class SshAgent implements Serializable {
             try {
                 // Créer fichiers temporaires pour toutes les clés
                 for (String credentialId : keysToLoad) {
-                    SSHUserPrivateKey credential = CredentialsProvider.findCredentialById(
-                        credentialId, SSHUserPrivateKey.class, run);
-                    
+                    SSHUserPrivateKey credential =
+                            CredentialsProvider.findCredentialById(credentialId, SSHUserPrivateKey.class, run);
+
                     if (credential == null) {
                         listener.getLogger().println("Warning: SSH credential not found: " + credentialId);
                         continue;
@@ -157,20 +155,20 @@ public class SshAgent implements Serializable {
 
                         // Créer fichier avec permissions sécurisées
                         List<String> createCmd = Arrays.asList(
-                            "/bin/sh", "-c", 
-                            String.format("umask 077 && cat > %s && chmod 600 %s", tempKeyFile, tempKeyFile)
-                        );
+                                "/bin/sh",
+                                "-c",
+                                String.format("umask 077 && cat > %s && chmod 600 %s", tempKeyFile, tempKeyFile));
 
                         ByteArrayInputStream keyInput = new ByteArrayInputStream(privateKey.getBytes());
 
                         int createResult = launcher.launch()
-                            .cmds(createCmd)
-                            .stdin(keyInput)  // ← Clé via stdin, pas visible dans les logs
-                            .quiet(true)
-                            .stdout(listener.getLogger())
-                            .stderr(listener.getLogger())
-                            .start()
-                            .joinWithTimeout(10, TimeUnit.SECONDS, listener);
+                                .cmds(createCmd)
+                                .stdin(keyInput) // ← Clé via stdin, pas visible dans les logs
+                                .quiet(true)
+                                .stdout(listener.getLogger())
+                                .stderr(listener.getLogger())
+                                .start()
+                                .joinWithTimeout(10, TimeUnit.SECONDS, listener);
 
                         if (createResult != 0) {
                             throw new RuntimeException("Failed to create key file");
@@ -180,15 +178,14 @@ public class SshAgent implements Serializable {
 
                 // Ajouter toutes les clés en une fois avec timeout (1 heure)
                 if (!allKeyFiles.isEmpty()) {
-                    String keyFilesList = allKeyFiles.stream()
-                        .map(f -> "'" + f + "'")
-                        .collect(Collectors.joining(" "));
-                        
+                    String keyFilesList =
+                            allKeyFiles.stream().map(f -> "'" + f + "'").collect(Collectors.joining(" "));
+
                     List<String> addCmd = Arrays.asList(
-                        "/bin/sh", "-c", 
-                        String.format("SSH_AUTH_SOCK='%s' ssh-add -t 3600 %s", socketPath, keyFilesList)
-                    );
-                    
+                            "/bin/sh",
+                            "-c",
+                            String.format("SSH_AUTH_SOCK='%s' ssh-add -t 3600 %s", socketPath, keyFilesList));
+
                     int result = LaunchHelper.executeQuietly(launcher, addCmd, listener.getLogger(), 30, listener);
                     if (result != 0) {
                         throw new RuntimeException("Failed to add SSH keys to agent");
@@ -197,7 +194,7 @@ public class SshAgent implements Serializable {
 
                 // Update reference counts seulement si succès
                 credentialIds.forEach(credId -> loadedKeys.merge(credId, 1, Integer::sum));
-                
+
                 listener.getLogger().println("SSH keys loaded. Agent has " + loadedKeys.size() + " unique keys");
 
             } finally {
@@ -264,8 +261,20 @@ public class SshAgent implements Serializable {
             listener.getLogger().println("Stopping SSH agent: " + agentPid);
 
             // Kill agent
-            List<String> killCmd = Arrays.asList("/bin/sh", "-c", "kill", agentPid);
-            LaunchHelper.executeQuietlyDiscardOutput(launcher, killCmd, 5, listener);
+            List<String> killCmd = Arrays.asList("/bin/sh", "-c", String.format("kill %s", agentPid));
+            int exitCode = launcher.launch()
+                    .cmds(killCmd)
+                    .stdout(listener.getLogger())
+                    .stderr(listener.getLogger())
+                    .quiet(true)
+                    .start()
+                    .joinWithTimeout(5, TimeUnit.SECONDS, listener);
+
+            if (exitCode != 0) {
+                listener.getLogger().println("[WARNING] Kill of the ssh agent failed !");
+            } else {
+                listener.getLogger().println("Agent stopped successfully");
+            }
 
             // Cleanup socket directory
             if (socketDir != null) {
