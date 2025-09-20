@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -157,12 +158,13 @@ public class ContainerManager implements Serializable {
         dockerCmd.add("-c");
         dockerCmd.add(command);
 
-        listener.getLogger().println("Running: " + command);
-        if (!allEnv.isEmpty()) {
-            listener.getLogger().println("Environment: " + envVarsToString(allEnv));
-        }
-
-        return LaunchHelper.executeQuietly(launcher, dockerCmd, listener.getLogger(), 30, listener);
+        return launcher.launch()
+                .cmds(dockerCmd)
+                .stdout(listener.getLogger())
+                .stderr(listener.getLogger())
+                // .quiet(true)
+                .start()
+                .joinWithTimeout(300, TimeUnit.SECONDS, listener);
     }
 
     /** Set environment variable for this container instance */

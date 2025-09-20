@@ -76,6 +76,8 @@ public class AnsiblePlaybookCommandBuilder {
         
         List<String> commandParts = new ArrayList<>();
         
+        commandParts.add("set -e");
+        
         // Change to project directory
         if (projectRoot != null) {
             commandParts.add("cd " + projectRoot);

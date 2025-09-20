@@ -126,8 +126,14 @@ public class AnsiblePlaybookStep extends Step implements Serializable {
             // - Inventory path resolution
             // - Extra vars formatting
             // - Command construction and execution
-            return ansibleContext.runPlaybook(
+            int exitCode = ansibleContext.runPlaybook(
                     step.playbook, step.envName, step.extraVars, step.options, step.user, launcher, listener);
+
+            if (exitCode != 0) {
+                throw new RuntimeException("Ansible playbook failed with exit code: " + exitCode);
+            }
+
+            return exitCode;
         }
     }
 }

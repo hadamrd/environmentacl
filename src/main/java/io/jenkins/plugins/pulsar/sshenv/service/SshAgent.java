@@ -6,9 +6,12 @@ import hudson.Launcher;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
+
+import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,8 +44,8 @@ public class SshAgent implements Serializable {
     private String socketDir;
 
     // Track loaded keys with reference counting
-    private final Map<String, Integer> loadedKeys = new ConcurrentHashMap<>();
-    private final ReentrantLock instanceLock = new ReentrantLock();
+    private transient final Map<String, Integer> loadedKeys = new ConcurrentHashMap<>();
+    private transient final ReentrantLock instanceLock = new ReentrantLock();
 
     private SshAgent(String nodeName) {
         this.nodeName = nodeName;
@@ -153,13 +156,25 @@ public class SshAgent implements Serializable {
                         allKeyFiles.add(tempKeyFile);
 
                         // Créer fichier avec permissions sécurisées
-                        String escapedKey = privateKey.replace("'", "'\"'\"'");
                         List<String> createCmd = Arrays.asList(
                             "/bin/sh", "-c", 
-                            String.format("umask 077 && printf '%%s' '%s' > %s", escapedKey, tempKeyFile)
+                            String.format("umask 077 && cat > %s && chmod 600 %s", tempKeyFile, tempKeyFile)
                         );
-                        
-                        LaunchHelper.executeQuietly(launcher, createCmd, listener.getLogger(), 10, listener);
+
+                        ByteArrayInputStream keyInput = new ByteArrayInputStream(privateKey.getBytes());
+
+                        int createResult = launcher.launch()
+                            .cmds(createCmd)
+                            .stdin(keyInput)  // ← Clé via stdin, pas visible dans les logs
+                            .quiet(true)
+                            .stdout(listener.getLogger())
+                            .stderr(listener.getLogger())
+                            .start()
+                            .joinWithTimeout(10, TimeUnit.SECONDS, listener);
+
+                        if (createResult != 0) {
+                            throw new RuntimeException("Failed to create key file");
+                        }
                     }
                 }
 
