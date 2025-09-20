@@ -48,16 +48,6 @@ public class AnsibleProjectStepExecution extends SynchronousNonBlockingStepExecu
 
             listener.getLogger().println("Ansible project execution completed successfully");
             return null;
-
-        } catch (Exception e) {
-            // Simple error handling - always wrap in AbortException
-            String message = e.getMessage();
-            if (message == null || message.trim().isEmpty()) {
-                message = "Ansible execution failed: " + e.getClass().getSimpleName();
-            }
-            
-            listener.error("Ansible project execution failed: " + message);
-            throw new AbortException(message);
             
         } finally {
             // Always cleanup

@@ -5,7 +5,7 @@ services:
       - ${DOCKER_GID:-1001} # To be updated with your actuall docker group (run getent group docker)
     environment:
       - JENKINS_URL=http://host.docker.internal:8080
-      - JENKINS_SECRET=915473672d1d469e06e0911db38977cab04324ddd42b698ae1bea8488e0d01a9
+      - JENKINS_SECRET=43a9cfc1552cc89cdaf3ddd942b4c4d6619a74c7b8f52cc61787f0048efb1b69
       - JENKINS_AGENT_NAME=agent
       - JENKINS_AGENT_WORKDIR=/home/jenkins/agent 
       - JENKINS_AGENT_LABELS=dev
