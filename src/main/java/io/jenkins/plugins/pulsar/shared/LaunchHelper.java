@@ -36,7 +36,7 @@ public class LaunchHelper {
                 .cmds(command)
                 .stdout(output)
                 .stderr(output)
-                // .quiet(true)
+                .quiet(true)
                 .start()
                 .joinWithTimeout(timeoutSeconds, TimeUnit.SECONDS, listener);
     }
@@ -87,7 +87,7 @@ public class LaunchHelper {
                 .cmds(command)
                 .stdout(listener.getLogger())
                 .stderr(listener.getLogger())
-                .quiet(true) // Still don't show the command itself
+                .quiet(true)
                 .start()
                 .join();
     }

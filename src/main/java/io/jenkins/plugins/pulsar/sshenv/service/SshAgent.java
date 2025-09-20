@@ -10,6 +10,8 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 // the tmp folder in this one should be settable
@@ -68,25 +70,29 @@ public class SshAgent implements Serializable {
             // Generate unique paths
             String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
             socketDir = "/tmp/ssh-agent-" + uuid;
-            socketPath = socketDir + "/agent.sock";
+            this.socketPath = socketDir + "/agent.sock";
 
             listener.getLogger().println("Starting SSH agent: " + socketPath);
 
-            // Start SSH agent
+            // Start SSH agent and capture output
             List<String> startCmd = Arrays.asList(
                     "/bin/sh",
                     "-c",
                     String.format(
-                            "mkdir -p %s && chmod 700 %s && ssh-agent -s -a %s", socketDir, socketDir, socketPath));
+                            "mkdir -p %s && chmod 700 %s && ssh-agent -s -a %s", 
+                            socketDir, socketDir, socketPath));
 
-            String output = LaunchHelper.executeAndCapture(launcher, startCmd, 30, listener);
+            String agentOutput = LaunchHelper.executeAndCapture(launcher, startCmd, 30, listener);
 
-            // Extract PID
-            if (output != null && output.contains("SSH_AGENT_PID=")) {
-                agentPid = output.replaceAll(".*SSH_AGENT_PID=(\\d+).*", "$1");
+            // Parse PID directly from output using regex
+            Pattern pattern = Pattern.compile("SSH_AGENT_PID=(\\d+)");
+            Matcher matcher = pattern.matcher(agentOutput);
+            
+            if (matcher.find()) {
+                this.agentPid = matcher.group(1);
                 listener.getLogger().println("SSH agent started with PID: " + agentPid);
             } else {
-                throw new RuntimeException("Failed to start SSH agent: " + output);
+                throw new RuntimeException("Failed to extract PID from ssh-agent output: " + agentOutput);
             }
 
         } finally {
@@ -121,71 +127,74 @@ public class SshAgent implements Serializable {
 
             listener.getLogger().println("Loading SSH keys: " + keysToLoad);
 
-            // Load each key
-            for (String credentialId : keysToLoad) {
-                loadSshKey(credentialId, run, launcher, listener);
+            // Collecter tous les fichiers de clés temporaires
+            List<String> allKeyFiles = new ArrayList<>();
+            String uuid = UUID.randomUUID().toString().substring(0, 8);
+
+            try {
+                // Créer fichiers temporaires pour toutes les clés
+                for (String credentialId : keysToLoad) {
+                    SSHUserPrivateKey credential = CredentialsProvider.findCredentialById(
+                        credentialId, SSHUserPrivateKey.class, run);
+                    
+                    if (credential == null) {
+                        listener.getLogger().println("Warning: SSH credential not found: " + credentialId);
+                        continue;
+                    }
+
+                    List<String> privateKeys = credential.getPrivateKeys();
+                    for (int i = 0; i < privateKeys.size(); i++) {
+                        String privateKey = privateKeys.get(i);
+                        if (privateKey == null || privateKey.trim().isEmpty()) {
+                            continue;
+                        }
+
+                        String tempKeyFile = String.format("/tmp/ssh-key-%s-%d-%s.tmp", credentialId, i, uuid);
+                        allKeyFiles.add(tempKeyFile);
+
+                        // Créer fichier avec permissions sécurisées
+                        String escapedKey = privateKey.replace("'", "'\"'\"'");
+                        List<String> createCmd = Arrays.asList(
+                            "/bin/sh", "-c", 
+                            String.format("umask 077 && printf '%%s' '%s' > %s", escapedKey, tempKeyFile)
+                        );
+                        
+                        LaunchHelper.executeQuietly(launcher, createCmd, listener.getLogger(), 10, listener);
+                    }
+                }
+
+                // Ajouter toutes les clés en une fois avec timeout (1 heure)
+                if (!allKeyFiles.isEmpty()) {
+                    String keyFilesList = allKeyFiles.stream()
+                        .map(f -> "'" + f + "'")
+                        .collect(Collectors.joining(" "));
+                        
+                    List<String> addCmd = Arrays.asList(
+                        "/bin/sh", "-c", 
+                        String.format("SSH_AUTH_SOCK='%s' ssh-add -t 3600 %s", socketPath, keyFilesList)
+                    );
+                    
+                    int result = LaunchHelper.executeQuietly(launcher, addCmd, listener.getLogger(), 30, listener);
+                    if (result != 0) {
+                        throw new RuntimeException("Failed to add SSH keys to agent");
+                    }
+                }
+
+                // Update reference counts seulement si succès
+                credentialIds.forEach(credId -> loadedKeys.merge(credId, 1, Integer::sum));
+                
+                listener.getLogger().println("SSH keys loaded. Agent has " + loadedKeys.size() + " unique keys");
+
+            } finally {
+                // Cleanup tous les fichiers temporaires
+                for (String keyFile : allKeyFiles) {
+                    List<String> cleanupCmd = Arrays.asList("rm", "-f", keyFile);
+                    LaunchHelper.executeQuietlyDiscardOutput(launcher, cleanupCmd, 5, listener);
+                }
             }
-
-            // Update reference counts
-            credentialIds.forEach(credId -> loadedKeys.merge(credId, 1, Integer::sum));
-
-            listener.getLogger().println("SSH keys loaded. Agent has " + loadedKeys.size() + " unique keys");
 
         } finally {
             instanceLock.unlock();
-        }
-    }
-
-    /** Load a single SSH key */
-    private void loadSshKey(String credentialId, Run<?, ?> run, Launcher launcher, TaskListener listener)
-            throws Exception {
-
-        SSHUserPrivateKey credential =
-                CredentialsProvider.findCredentialById(credentialId, SSHUserPrivateKey.class, run);
-
-        if (credential == null) {
-            throw new IllegalArgumentException("SSH credential not found: " + credentialId);
-        }
-
-        // Get private keys
-        List<String> privateKeys = credential.getPrivateKeys();
-        if (privateKeys.isEmpty()) {
-            throw new IllegalArgumentException("No private keys found for: " + credentialId);
-        }
-
-        // Add each private key to the agent
-        for (int i = 0; i < privateKeys.size(); i++) {
-            String privateKey = privateKeys.get(i);
-            if (privateKey == null || privateKey.trim().isEmpty()) {
-                continue;
-            }
-
-            String tempKeyFile = "/tmp/ssh-key-" + credentialId + "-" + i + ".tmp";
-
-            try {
-                // Write key to temp file
-                List<String> writeCmd = Arrays.asList(
-                        "/bin/sh",
-                        "-c",
-                        String.format(
-                                "cat > %s << 'EOF'\n%s\nEOF && chmod 600 %s", tempKeyFile, privateKey, tempKeyFile));
-
-                LaunchHelper.executeQuietly(launcher, writeCmd, listener.getLogger(), 10, listener);
-
-                // Add to SSH agent
-                List<String> addCmd = Arrays.asList(
-                        "/bin/sh", "-c", String.format("SSH_AUTH_SOCK=%s ssh-add %s", socketPath, tempKeyFile));
-
-                int result = LaunchHelper.executeQuietly(launcher, addCmd, listener.getLogger(), 10, listener);
-                if (result != 0) {
-                    listener.getLogger().println("Warning: Failed to add key " + credentialId + "[" + i + "]");
-                }
-
-            } finally {
-                // Cleanup temp file
-                List<String> cleanupCmd = Arrays.asList("rm", "-f", tempKeyFile);
-                LaunchHelper.executeQuietlyDiscardOutput(launcher, cleanupCmd, 5, listener);
-            }
         }
     }
 
@@ -215,14 +224,16 @@ public class SshAgent implements Serializable {
     /** Check if SSH agent is running */
     public boolean isRunning(Launcher launcher, TaskListener listener) {
         if (agentPid == null || socketPath == null) {
+            listener.getLogger().println("No agent pid or socket path found!");
             return false;
         }
 
         try {
-            List<String> checkCmd = Arrays.asList("kill", "-0", agentPid);
+            List<String> checkCmd = Arrays.asList("test", "-d", "/proc/" + agentPid);
             int result = LaunchHelper.executeQuietly(launcher, checkCmd, listener.getLogger(), 5, listener);
             return result == 0;
         } catch (Exception e) {
+            listener.getLogger().println("Error checking process: " + e.getMessage());
             return false;
         }
     }

@@ -4,6 +4,7 @@ import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import io.jenkins.plugins.pulsar.shared.LaunchHelper;
 import io.jenkins.plugins.pulsar.sshenv.service.SshAgent;
 import java.io.Serializable;
 import java.util.List;
@@ -79,13 +80,7 @@ public class SshAgentStep extends Step implements Serializable {
             Launcher launcher = context.get(Launcher.class);
             Run<?, ?> run = context.get(Run.class);
 
-            // Fixme :
-            // There is an environment variable 'NODE_NAME' which has this.
-            // You can access it like this:
-            // echo "NODE_NAME = ${env.NODE_NAME}"
-
-            String nodeName = "master"; // Get properly
-
+            String nodeName = LaunchHelper.getNodeName(context);
             SshAgent agent = SshAgent.getInstance(nodeName);
 
             // Start agent and load keys
