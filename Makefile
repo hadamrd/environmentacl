@@ -22,6 +22,7 @@ run:
 	@echo "Starting Jenkins in development mode..."
 # 	@dos2unix .env
 # 	@dos2unix .secrets
+	export MAVEN_OPTS="--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.base/java.nio.file=ALL-UNNAMED --add-opens java.base/java.security=ALL-UNNAMED"
 	@set -a && source .env && source .secrets && set +a && mvn -Dhost=0.0.0.0 -Dport=8080 hpi:run
 
 build:

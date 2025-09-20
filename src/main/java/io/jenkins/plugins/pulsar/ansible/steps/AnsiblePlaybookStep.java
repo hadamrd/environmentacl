@@ -113,25 +113,16 @@ public class AnsiblePlaybookStep extends Step implements Serializable {
             listener.getLogger().println("Environment: " + step.envName);
             listener.getLogger().println("User: " + step.user);
 
-            try {
-                int exitCode = ansibleContext.runPlaybook(
-                        step.playbook, step.envName, step.extraVars, step.options, step.user, launcher, listener);
+            int exitCode = ansibleContext.runPlaybook(
+                    step.playbook, step.envName, step.extraVars, step.options, step.user, launcher, listener);
 
-                listener.getLogger().println("Run playbook finished with code: " + exitCode);
+            listener.getLogger().println("Run playbook finished with code: " + exitCode);
 
-                if (exitCode != 0) {
-                    listener.error("Ansible playbook failed with exit code: " + exitCode);
-                    // Don't throw - just return the exit code
-                }
-
-                return exitCode; // Always return the code, let parent handle it
-
-            } catch (Exception e) {
-                // Log error but don't throw
-                listener.error("Ansible playbook execution failed: " + e.getMessage());
-                e.printStackTrace(listener.getLogger());
-                return -1; // Return error code
+            if (exitCode != 0) {
+                throw new RuntimeException("Ansible playbook failed with exit code: " + exitCode);
             }
+
+            return exitCode; // Always return the code, let parent handle it
         }
     }
 }

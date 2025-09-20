@@ -15,7 +15,8 @@ import java.util.logging.Logger;
 public class ContainerManager implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private static final Logger LOGGER = Logger.getLogger(ContainerManager.class.getName());
+    private static final transient Logger LOGGER = Logger.getLogger(ContainerManager.class.getName());
+    
     public static final String PLUGIN_LABEL = "io.jenkins.sharedcontainer.managed=true";
     public static final String IMAGE_LABEL_PREFIX = "io.jenkins.sharedcontainer.image=";
     public static final String NODE_LABEL_PREFIX = "io.jenkins.sharedcontainer.node=";
