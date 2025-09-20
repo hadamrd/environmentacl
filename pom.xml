@@ -34,8 +34,8 @@
     <revision>1.0</revision>
     <changelist>-SNAPSHOT</changelist>
     <jenkins.version>2.516.3</jenkins.version>
-    <bom.artifactId>bom-2.492.x</bom.artifactId>
-    <bom.version>5422.v0fce72a_b_b_8cf</bom.version>
+    <bom.artifactId>bom-2.516.x</bom.artifactId>
+    <bom.version>5353.v3dec76e40169</bom.version>
 
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <spotless.check.skip>true</spotless.check.skip>
@@ -177,7 +177,8 @@
         <configuration>
           <compatibleSinceVersion>${jenkins.version}</compatibleSinceVersion>
           <systemProperties>
-            <casc.jenkins.config>${project.basedir}/src/test/resources/jenkins-config</casc.jenkins.config>
+            <!-- <casc.jenkins.config>${project.basedir}/src/test/resources/jenkins-config</casc.jenkins.config> -->
+            <io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>5000</io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>
             <jenkins.install.runSetupWizard>false</jenkins.install.runSetupWizard>
             <hudson.model.ParametersAction.keepUndefinedParameters>false</hudson.model.ParametersAction.keepUndefinedParameters>
             <hudson.model.DirectoryBrowserSupport.CSP>default-src 'self'; style-src 'self' 'unsafe-inline';</hudson.model.DirectoryBrowserSupport.CSP>
