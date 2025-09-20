@@ -1,15 +1,4 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" 
          xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  
-  <f:section title="Environment ACL Manager">
-    <div class="jenkins-alert jenkins-alert-info">
-      <p>This plugin is configured via <strong>Configuration as Code (JCasC)</strong>.</p>
-      <p>
-        To view current configuration, go to: 
-        <a href="${rootURL}/manage/environment-acl" target="_blank">Environment ACL Manager</a>
-      </p>
-    </div>
-  </f:section>
-  
 </j:jelly>

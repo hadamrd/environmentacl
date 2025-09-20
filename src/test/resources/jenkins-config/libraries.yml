@@ -3,14 +3,13 @@ unclassified:
     libraries:
       - defaultVersion: "main"
         includeInChangesets: false
-        name: "shared-library"
+        name: "pulsar-library"
         retriever:
           modernSCM:
             libraryPath: "./src/test/resources/library"
             scm:
               git:
                 remote: "https://github.com/hadamrd/environmentacl.git"
-                credentialsId: "git-pat"
                 traits:
                   - "gitBranchDiscovery"
                   - cloneOption:  # Add shallow clone configuration
