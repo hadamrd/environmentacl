@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 public class ContainerManager implements Serializable {
     private static final long serialVersionUID = 1L;
+    
     private static final Logger LOGGER = Logger.getLogger(ContainerManager.class.getName());
     public static final String PLUGIN_LABEL = "io.jenkins.sharedcontainer.managed=true";
     public static final String IMAGE_LABEL_PREFIX = "io.jenkins.sharedcontainer.image=";
@@ -266,30 +267,6 @@ public class ContainerManager implements Serializable {
             }
             activeContainers.clear();
         }
-    }
-
-    // Helper methods
-
-    /** Convert environment variables to readable string */
-    private String envVarsToString(Map<String, String> envVars) {
-        if (envVars.isEmpty()) {
-            return "none";
-        }
-
-        List<String> envList = new ArrayList<>();
-        for (Map.Entry<String, String> entry : envVars.entrySet()) {
-            // Don't log sensitive values in full
-            String value = entry.getValue();
-            if (entry.getKey().toLowerCase().contains("password")
-                    || entry.getKey().toLowerCase().contains("secret")
-                    || entry.getKey().toLowerCase().contains("token")) {
-                value = "***";
-            } else if (value.length() > 50) {
-                value = value.substring(0, 47) + "...";
-            }
-            envList.add(entry.getKey() + "=" + value);
-        }
-        return String.join(", ", envList);
     }
 
     /** Get short container ID for cleaner logging */

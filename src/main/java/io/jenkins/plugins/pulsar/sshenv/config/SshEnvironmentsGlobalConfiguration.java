@@ -77,12 +77,4 @@ public class SshEnvironmentsGlobalConfiguration extends GlobalConfiguration {
                 .findFirst()
                 .orElse(null);
     }
-
-    /** Handle form submission from Jenkins UI */
-    @Override
-    public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
-        req.bindJSON(this, json);
-        save();
-        return true;
-    }
 }

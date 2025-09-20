@@ -92,41 +92,4 @@ public class AnsibleProjectStep extends Step implements Serializable {
             return true;
         }
     }
-
-    public static class AnsibleProjectStepExecution extends SynchronousNonBlockingStepExecution<Void> {
-        private final AnsibleProjectStep step;
-
-        AnsibleProjectStepExecution(AnsibleProjectStep step, StepContext context) {
-            super(context);
-            this.step = step;
-        }
-
-        @Override
-        protected Void run() throws Exception {
-            StepContext context = getContext();
-            TaskListener listener = context.get(TaskListener.class);
-
-            // Create Ansible context - this handles everything (container, SSH, vaults, project setup)
-            AnsibleContext ansibleContext = AnsibleContext.getOrCreate(
-                    step.getProjectId(), step.getVersion(), context, step.getContainerOptions());
-
-            listener.getLogger().println("=== Ansible Project: " + step.getProjectId() + " ===");
-            listener.getLogger().println("Version: " + step.getVersion());
-            listener.getLogger().println("Project Root: " + ansibleContext.getProjectRoot());
-
-            try {
-                Object result = context.newBodyInvoker()
-                        .withContext(ansibleContext)
-                        .withContext(ansibleContext.getContainer())
-                        .start()
-                        .get(); // Pattern synchrone simple
-
-                return null;
-
-            } finally {
-                // Cleanup direct, pas besoin de callbacks
-                ansibleContext.release(step.isCleanup(), context.get(Launcher.class), listener);
-            }
-        }
-    }
 }

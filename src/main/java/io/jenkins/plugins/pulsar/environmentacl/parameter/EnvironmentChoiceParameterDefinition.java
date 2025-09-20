@@ -1,16 +1,22 @@
 package io.jenkins.plugins.pulsar.environmentacl.parameter;
 
 import hudson.Extension;
+import hudson.model.Job;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
 import io.jenkins.plugins.pulsar.environmentacl.service.EnvironmentACLChecker;
+
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+
+
 import net.sf.json.JSONObject;
+
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerRequest2;
 
 public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
     private static final Logger LOGGER = Logger.getLogger(EnvironmentChoiceParameterDefinition.class.getName());
@@ -21,59 +27,35 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
         setDescription(description);
     }
 
-    public List<String> getChoices() {
+    public List<String> getChoices(String jobFullName) {
         try {
-            String jobName = getCurrentJobFullName();
-            List<String> accessibleEnvs = EnvironmentACLChecker.getAccessibleEnvironments(jobName);
+            List<String> accessibleEnvs = EnvironmentACLChecker.getAccessibleEnvironments(jobFullName);
 
             // Secure logging - only to Jenkins system log
-            LOGGER.fine("Environment parameter '"
-                    + getName()
-                    + "' for job '"
-                    + jobName
-                    + "' returned "
-                    + accessibleEnvs.size()
-                    + " accessible environments");
+            LOGGER.log(Level.FINE, "Environment parameter ''{0}'' for job ''{1}'' returned {2} accessible environments", new Object[]{getName(), jobFullName, accessibleEnvs.size()});
 
             // Return actual choices only - no error messages mixed in
             return accessibleEnvs;
 
         } catch (Exception e) {
-            LOGGER.warning("Error loading environments for parameter '" + getName() + "': " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Error loading environments for parameter ''{0}'': {1}", new Object[]{getName(), e.getMessage()});
             // Return empty list on error - let UI handle it
             return List.of();
         }
     }
 
-    private String getCurrentJobFullName() {
-        try {
-            StaplerRequest req = org.kohsuke.stapler.Stapler.getCurrentRequest();
-            if (req != null && req.getRequestURI().contains("/job/")) {
-                return req.getRequestURI().split("/job/")[1].split("/")[0];
-            }
-        } catch (Exception e) {
-            LOGGER.fine("Could not determine job name from request: " + e.getMessage());
-        }
-        return "*";
-    }
-
     @Override
-    public ParameterValue createValue(StaplerRequest req, JSONObject jo) {
+    public ParameterValue createValue(StaplerRequest2 req, JSONObject jo) {
         String value = jo.optString("value", "");
         // No need to filter out error messages since we don't add them to choices
         return new StringParameterValue(getName(), value, getDescription());
     }
 
     @Override
-    public ParameterValue createValue(StaplerRequest req) {
-        String[] values = req.getParameterValues(getName());
-        String value = (values != null && values.length > 0) ? values[0] : "";
-        return new StringParameterValue(getName(), value, getDescription());
-    }
-
-    @Override
     public ParameterValue getDefaultParameterValue() {
-        List<String> choices = getChoices();
+        // FIXME: Find a way to get full job name here!
+        String currJobFullName = "*";
+        List<String> choices = getChoices(currJobFullName);
         String defaultValue = choices.isEmpty() ? "" : choices.get(0);
         return new StringParameterValue(getName(), defaultValue, getDescription());
     }

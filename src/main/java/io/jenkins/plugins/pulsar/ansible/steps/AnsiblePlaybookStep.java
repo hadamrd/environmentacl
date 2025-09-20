@@ -1,5 +1,6 @@
 package io.jenkins.plugins.pulsar.ansible.steps;
 
+import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.TaskListener;
@@ -104,7 +105,8 @@ public class AnsiblePlaybookStep extends Step implements Serializable {
             AnsibleContext ansibleContext = getContext().get(AnsibleContext.class);
 
             if (ansibleContext == null) {
-                throw new IllegalStateException("ansiblePlaybook must be used inside an ansibleProject block");
+                listener.error("ansiblePlaybook must be used inside an ansibleProject block");
+                return -1; // Return error code instead of throwing
             }
 
             listener.getLogger().println("=== Running Ansible Playbook ===");
@@ -112,32 +114,26 @@ public class AnsiblePlaybookStep extends Step implements Serializable {
             listener.getLogger().println("Environment: " + step.envName);
             listener.getLogger().println("User: " + step.user);
 
-            if (step.extraVars != null && !step.extraVars.isEmpty()) {
-                listener.getLogger().println("Extra vars: " + step.extraVars.keySet());
+            try {
+                int exitCode = ansibleContext.runPlaybook(
+                        step.playbook, step.envName, step.extraVars, 
+                        step.options, step.user, launcher, listener);
+
+                listener.getLogger().println("Run playbook finished with code: " + exitCode);
+
+                if (exitCode != 0) {
+                    listener.error("Ansible playbook failed with exit code: " + exitCode);
+                    // Don't throw - just return the exit code
+                }
+
+                return exitCode; // Always return the code, let parent handle it
+
+            } catch (Exception e) {
+                // Log error but don't throw
+                listener.error("Ansible playbook execution failed: " + e.getMessage());
+                e.printStackTrace(listener.getLogger());
+                return -1; // Return error code
             }
-
-            if (step.options != null && !step.options.trim().isEmpty()) {
-                listener.getLogger().println("Options: " + step.options);
-            }
-
-            // Use AnsibleContext.runPlaybook() which handles everything:
-            // - SSH agent environment
-            // - Vault files and --vault-id parameters
-            // - Inventory path resolution
-            // - Extra vars formatting
-            // - Command construction and execution
-            int exitCode = ansibleContext.runPlaybook(
-                    step.playbook, step.envName, step.extraVars, step.options, step.user, launcher, listener);
-
-            listener.getLogger().println("Run playbok finished with code : " + exitCode);
-
-            if (exitCode != 0) {
-                throw new RuntimeException("Ansible playbook failed with exit code: " + exitCode);
-            }
-
-            listener.getLogger().println("Playbook completed successfully");
-
-            return null;
         }
     }
 }

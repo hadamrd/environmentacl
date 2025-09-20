@@ -67,11 +67,4 @@ public class EnvironmentACLGlobalConfiguration extends GlobalConfiguration {
         EnvironmentGroup group = getEnvironmentGroupForEnvironment(environment);
         return group != null ? group.getVaultCredentialId(vaultId) : null;
     }
-
-    @Override
-    public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
-        req.bindJSON(this, json);
-        save();
-        return true;
-    }
 }

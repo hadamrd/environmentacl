@@ -1,0 +1,21 @@
+unclassified:
+  globalLibraries:
+    libraries:
+      - defaultVersion: "main"
+        includeInChangesets: false
+        name: "shared-library"
+        retriever:
+          modernSCM:
+            libraryPath: "./src/test/resources/library"
+            scm:
+              git:
+                remote: "https://github.com/hadamrd/environmentacl.git"
+                credentialsId: "git-pat"
+                traits:
+                  - "gitBranchDiscovery"
+                  - cloneOption:  # Add shallow clone configuration
+                      extension:
+                        depth: 1           # Shallow clone depth
+                        honorRefspec: true # Honor branch references
+                        noTags: false      # Keep tags for versioning
+                        shallow: true      # Enable shallow cloning
