@@ -2,19 +2,10 @@ unclassified:
   ansibleProjects:
     projects:
       - id: "ansible"
-        repository: "https://github.com/hadamrd/infra-ansible"
-        execEnv: "quay.io/ansible/ansible-runner:latest"
+        repository: "https://github.com/hadamrd/ansible"
         defaultBranch: "main"
+        execEnv: "local/ansible:slim"
         environments:
-          - group: "prod-eu"
+          - group: "production"
             inventoryPath: "inventory/prod"
-        ansibleConfig: |
-          hostKeyChecking=False
-          timeout=30 
-          gathering=smart
-          pipelining=True
-          stdout_callback=yaml
-          become=True
-          becomeMethod=sudo
-          sshArgs="-o ControlMaster=auto"
-          logPath="/var/log/ansible.log"
+        ansibleConfig: "${readFile:src/test/resources/jenkins-config/ansible/ansible.cfg}"

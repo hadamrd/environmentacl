@@ -390,7 +390,6 @@ public class AnsibleContext implements Serializable {
         SharedContainerStep step = new SharedContainerStep(project.getExecEnv());
 
         List<String> finalOptions = new ArrayList<>();
-        finalOptions.add("-v /repos/cache:/repos/cache:rw,z");
 
         // Mount SSH agent socket if available
         if (sshAgent != null && sshAgent.getSocketPath() != null) {

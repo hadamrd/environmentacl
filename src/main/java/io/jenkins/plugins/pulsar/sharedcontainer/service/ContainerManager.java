@@ -86,7 +86,7 @@ public class ContainerManager implements Serializable {
 
         listener.getLogger().println("Docker command: " + String.join(" ", dockerCmd));
 
-        String containerId = LaunchHelper.executeAndCapture(launcher, dockerCmd, 60, listener);
+        String containerId = LaunchHelper.executeAndCapture(launcher, dockerCmd, 300, listener);
         if (containerId == null || containerId.isEmpty()) {
             throw new IOException("Failed to create container for image: " + image);
         }

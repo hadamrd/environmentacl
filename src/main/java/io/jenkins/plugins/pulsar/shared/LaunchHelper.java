@@ -36,7 +36,7 @@ public class LaunchHelper {
                 .cmds(command)
                 .stdout(output)
                 .stderr(output)
-                .quiet(true)
+                // .quiet(true)
                 .start()
                 .joinWithTimeout(timeoutSeconds, TimeUnit.SECONDS, listener);
     }
