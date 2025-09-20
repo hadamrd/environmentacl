@@ -1,7 +1,7 @@
 package io.jenkins.plugins.pulsar.ansible.model;
 
 import hudson.Extension;
-import hudson.model.AbstractDescribableImpl;
+import hudson.model.Describable;
 import hudson.model.Descriptor;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -9,11 +9,11 @@ import java.util.List;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> implements Serializable {
+public class AnsibleProject implements Describable<AnsibleProject>, Serializable {
     private static final long serialVersionUID = 1L;
 
-    private String id;
-    private String repository;
+    private final String id;
+    private final String repository;
     private String execEnv;
     private String azureCredentialId;
     private String defaultBranch;
@@ -62,17 +62,20 @@ public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> impl
     }
 
     private String getDefaultAnsibleConfig() {
-        return "[defaults]\n"
-                + "host_key_checking = False\n"
-                + "gathering = implicit\n"
-                + "timeout = 10\n"
-                + "retries = 3\n"
-                + "pipelining = True\n"
-                + "stdout_callback = default\n"
-                + "nocows = 1\n"
-                + "\n[ssh_connection]\n"
-                + "ssh_args = -o ControlMaster=auto -o ControlPersist=60s\n"
-                + "pipelining = True\n";
+        return """
+               [defaults]
+               host_key_checking = False
+               gathering = implicit
+               timeout = 10
+               retries = 3
+               pipelining = True
+               stdout_callback = default
+               nocows = 1
+               
+               [ssh_connection]
+               ssh_args = -o ControlMaster=auto -o ControlPersist=60s
+               pipelining = True
+               """;
     }
 
     public List<AnsibleVault> getVaults() {
@@ -119,7 +122,7 @@ public class AnsibleProject extends AbstractDescribableImpl<AnsibleProject> impl
 
     public AnsibleEnvironment getEnvironmentByGroup(String group) {
         return getEnvironments().stream()
-                .filter(env -> group.equals(env.getGroup()))
+                .filter(env -> group.equals(env.getEnvGroup()))
                 .findFirst()
                 .orElse(null);
     }

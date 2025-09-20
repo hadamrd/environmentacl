@@ -6,10 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import jenkins.model.GlobalConfiguration;
-import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.StaplerRequest;
 
 /**
  * Global configuration for SSH environments. Manages environments that can be configured via JCasC

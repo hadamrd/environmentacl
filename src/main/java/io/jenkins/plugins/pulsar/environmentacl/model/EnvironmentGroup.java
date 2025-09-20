@@ -1,15 +1,15 @@
 package io.jenkins.plugins.pulsar.environmentacl.model;
 
 import hudson.Extension;
-import hudson.model.AbstractDescribableImpl;
+import hudson.model.Describable;
 import hudson.model.Descriptor;
 import java.util.ArrayList;
 import java.util.List;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class EnvironmentGroup extends AbstractDescribableImpl<EnvironmentGroup> {
-    private String name;
+public class EnvironmentGroup implements Describable<EnvironmentGroup> {
+    private final String name;
     private String description;
     private List<String> environments;
     private List<String> tags; // New: Environment tags for enterprise filtering

@@ -6,6 +6,7 @@ import hudson.security.Permission;
 import io.jenkins.plugins.pulsar.sshenv.config.SshEnvironmentsGlobalConfiguration;
 import jenkins.model.Jenkins;
 import org.jenkinsci.Symbol;
+
 /**
  * Management link for SSH Environments configuration. Provides a dedicated page for managing SSH
  * environments.

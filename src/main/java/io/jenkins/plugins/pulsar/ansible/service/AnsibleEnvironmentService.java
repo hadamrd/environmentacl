@@ -1,12 +1,13 @@
 package io.jenkins.plugins.pulsar.ansible.service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import io.jenkins.plugins.pulsar.ansible.AnsibleProjectsGlobalConfiguration;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleEnvironment;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleProject;
 import io.jenkins.plugins.pulsar.environmentacl.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.pulsar.environmentacl.model.EnvironmentGroup;
-import java.util.ArrayList;
-import java.util.List;
 
 public class AnsibleEnvironmentService {
     private final AnsibleProjectsGlobalConfiguration ansibleConfig;
@@ -65,7 +66,7 @@ public class AnsibleEnvironmentService {
 
         // For each environment group mapping in the Ansible project
         for (AnsibleEnvironment ansibleEnv : project.getEnvironments()) {
-            String groupName = ansibleEnv.getGroup();
+            String groupName = ansibleEnv.getEnvGroup();
 
             // Find the corresponding environment group
             EnvironmentGroup envGroup = envAclConfig.getEnvironmentGroups().stream()

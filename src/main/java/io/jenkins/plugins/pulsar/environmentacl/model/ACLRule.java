@@ -1,16 +1,16 @@
 package io.jenkins.plugins.pulsar.environmentacl.model;
 
 import hudson.Extension;
-import hudson.model.AbstractDescribableImpl;
+import hudson.model.Describable;
 import hudson.model.Descriptor;
 import java.util.ArrayList;
 import java.util.List;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class ACLRule extends AbstractDescribableImpl<ACLRule> {
-    private String name;
-    private String type; // "allow" or "deny"
+public class ACLRule implements Describable<ACLRule> {
+    private final String name;
+    private final String type; // "allow" or "deny"
     private int priority = 0;
     private List<String> jobs;
     private List<String> environments;

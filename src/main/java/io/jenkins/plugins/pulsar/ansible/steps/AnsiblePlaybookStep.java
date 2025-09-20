@@ -1,6 +1,5 @@
 package io.jenkins.plugins.pulsar.ansible.steps;
 
-import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.TaskListener;
@@ -116,8 +115,7 @@ public class AnsiblePlaybookStep extends Step implements Serializable {
 
             try {
                 int exitCode = ansibleContext.runPlaybook(
-                        step.playbook, step.envName, step.extraVars, 
-                        step.options, step.user, launcher, listener);
+                        step.playbook, step.envName, step.extraVars, step.options, step.user, launcher, listener);
 
                 listener.getLogger().println("Run playbook finished with code: " + exitCode);
 

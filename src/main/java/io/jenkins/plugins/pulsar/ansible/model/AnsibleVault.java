@@ -1,18 +1,16 @@
 package io.jenkins.plugins.pulsar.ansible.model;
 
 import hudson.Extension;
-import hudson.model.AbstractDescribableImpl;
+import hudson.model.Describable;
 import hudson.model.Descriptor;
-
 import java.io.Serializable;
-
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class AnsibleVault extends AbstractDescribableImpl<AnsibleVault> implements Serializable {
+public class AnsibleVault implements  Describable<AnsibleVault>, Serializable {
     private static final long serialVersionUID = 1L;
-    
-    private String name;
+
+    private final String name;
     private String description;
     private String credentialId;
     private String vaultFile;

@@ -1,7 +1,7 @@
 package io.jenkins.plugins.pulsar.ansible.model;
 
 import hudson.Extension;
-import hudson.model.AbstractDescribableImpl;
+import hudson.model.Describable;
 import hudson.model.Descriptor;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -9,10 +9,10 @@ import java.util.List;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class AnsibleEnvironment extends AbstractDescribableImpl<AnsibleEnvironment> implements Serializable {
+public class AnsibleEnvironment implements Describable<AnsibleEnvironment>, Serializable {
     private static final long serialVersionUID = 1L;
 
-    private String group;
+    private String envGroup;
     private String description;
     private String inventoryPath;
     private List<String> sshKeys;
@@ -20,13 +20,13 @@ public class AnsibleEnvironment extends AbstractDescribableImpl<AnsibleEnvironme
 
     @DataBoundConstructor
     public AnsibleEnvironment(String group) {
-        this.group = group;
+        this.envGroup = group;
         this.sshKeys = new ArrayList<>();
         this.vaults = new ArrayList<>();
     }
 
-    public String getGroup() {
-        return group;
+    public String getEnvGroup() {
+        return envGroup;
     }
 
     public String getDescription() {
@@ -43,6 +43,11 @@ public class AnsibleEnvironment extends AbstractDescribableImpl<AnsibleEnvironme
 
     public List<String> getVaults() {
         return vaults != null ? vaults : new ArrayList<>();
+    }
+
+    @DataBoundSetter
+    public void setEnvGroup(String group) {
+        this.envGroup = group;
     }
 
     @DataBoundSetter

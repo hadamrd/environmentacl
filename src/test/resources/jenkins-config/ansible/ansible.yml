@@ -6,6 +6,6 @@ unclassified:
         defaultBranch: "main"
         execEnv: "local/ansible:slim"
         environments:
-          - group: "production"
+          - envGroup: "production"
             inventoryPath: "inventory/prod"
         ansibleConfig: "${readFile:src/test/resources/jenkins-config/ansible/ansible.cfg}"
