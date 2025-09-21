@@ -57,13 +57,12 @@ public class ContainerManager implements Serializable {
             }
 
             // Create new container
-            listener.getLogger().println("Creating new shared container for image: " + image);
             String containerId = createContainer(nodeName, image, step, launcher, listener);
 
             ContainerManager manager = new ContainerManager(nodeName, image, containerId);
             activeContainers.put(containerKey, manager);
 
-            listener.getLogger().println("Created shared container: " + manager.getShortId());
+            listener.getLogger().println("Created container: " + manager.getShortId());
             return manager;
         }
     }
@@ -87,8 +86,6 @@ public class ContainerManager implements Serializable {
         dockerCmd.add(image);
         dockerCmd.add("sleep");
         dockerCmd.add(String.valueOf(step.getTimeoutHours() * 3600));
-
-        listener.getLogger().println("Docker command: " + String.join(" ", dockerCmd));
 
         String containerId = LaunchHelper.executeAndCapture(launcher, dockerCmd, 300, listener);
         if (containerId == null || containerId.isEmpty()) {

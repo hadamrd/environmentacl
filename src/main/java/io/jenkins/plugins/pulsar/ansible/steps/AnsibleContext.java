@@ -117,7 +117,6 @@ public class AnsibleContext implements Serializable {
             context.initialize(stepContext, containerOptions, launcher, listener);
 
             activeContexts.put(contextKey, context);
-            listener.getLogger().println("Ansible context ready: " + projectId);
 
             return context;
         }
@@ -132,13 +131,27 @@ public class AnsibleContext implements Serializable {
 
         listener.getLogger().println("Setting up Ansible environment...");
 
-        // 1. Create/get shared container using existing system
-        container = createOrGetContainer(containerOptions, launcher, listener);
-        sshAgent = SshAgent.getInstance(nodeName);
+        // 1. Start SSH agent
+        this.sshAgent = SshAgent.getInstance(nodeName);
         sshAgent.start(launcher, listener);
-        container.setEnv("SSH_AUTH_SOCK", sshAgent.getSocketPath());
 
-        // 4. Setup project (checkout, ansible.cfg)
+        // 2. Prepare container options with SSH socket mount
+        List<String> finalContainerOptions = new ArrayList<>();
+        if (containerOptions != null) {
+            finalContainerOptions.addAll(containerOptions);
+        }
+
+        // Add SSH socket mount - mount the socket file directly like Docker socket
+        String socketPath = sshAgent.getSocketPath();
+        finalContainerOptions.add("-v " + socketPath + ":" + socketPath);
+
+        // 3. Create container with socket mounted
+        this.container = createOrGetContainer(finalContainerOptions, launcher, listener);
+
+        // 4. Set SSH_AUTH_SOCK environment
+        container.setEnv("SSH_AUTH_SOCK", socketPath);
+
+        // 5. Setup project
         setupProject(launcher, listener);
 
         initialized = true;
@@ -247,8 +260,6 @@ public class AnsibleContext implements Serializable {
 
         // Generate and write ansible.cfg
         setupAnsibleConfig(launcher, listener);
-
-        listener.getLogger().println("Project ready at " + projectRoot);
     }
 
     /** Checkout project from repository */
@@ -388,21 +399,11 @@ public class AnsibleContext implements Serializable {
     /** Create SharedContainerStep for existing container system */
     private SharedContainerStep createContainerStep(List<String> containerOptions) {
         SharedContainerStep step = new SharedContainerStep(project.getExecEnv());
-
-        List<String> finalOptions = new ArrayList<>();
-
-        // Mount SSH agent socket if available
-        if (sshAgent != null && sshAgent.getSocketPath() != null) {
-            String socketDir = sshAgent.getSocketPath()
-                    .substring(0, sshAgent.getSocketPath().lastIndexOf('/'));
-            finalOptions.add("-v " + socketDir + ":" + socketDir + ":rw");
+        
+        if (containerOptions != null && !containerOptions.isEmpty()) {
+            step.setOptions(String.join(" ", containerOptions));
         }
-
-        if (containerOptions != null) {
-            finalOptions.addAll(containerOptions);
-        }
-
-        step.setOptions(String.join(" ", finalOptions));
+        
         return step;
     }
 

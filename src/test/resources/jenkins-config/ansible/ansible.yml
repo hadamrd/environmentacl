@@ -8,8 +8,8 @@ unclassified:
         envGroups:
           - groupName: "production"
             inventoryPathTemplate: "inventory/prod"
-            vaultIds: ["prod-vault"]
+            vaultIds: ["prod"]
         ansibleConfig: "${readFile:src/test/resources/jenkins-config/ansible/ansible.cfg}"
         vaults:
-          - id: "prod-vault"
+          - id: "prod"
             credentialId: "prod-ansible-key"
