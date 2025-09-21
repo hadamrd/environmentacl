@@ -93,7 +93,7 @@ public class AnsibleContext implements Serializable {
 
         synchronized (AnsibleContext.class) {
             AnsibleContext existing = activeContexts.get(contextKey);
-            if (existing.isValid(launcher, listener)) {
+            if (existing != null && existing.isValid(launcher, listener)) {
                 existing.referenceCount++;
                 listener.getLogger().println("Reusing existing Ansible context: " + projectId);
                 return existing;
