@@ -1,6 +1,12 @@
 jobs:
   - script: >
       pipelineJob('ansible-job') {
+        parameters {
+          environmentChoice {
+            name 'environment'
+            description 'Select the target environment'
+          }
+        }
         definition {
           cps {
             script('''@Library('pulsar-library') _

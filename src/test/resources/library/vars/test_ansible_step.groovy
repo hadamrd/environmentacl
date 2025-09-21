@@ -4,14 +4,14 @@ def call() {
             ansiblePlaybook(
                 user: 'ansible',
                 playbook: 'playbooks/ping.yml',
-                envName: 'prod-eu'
+                envName: params.environment
             )
         }
         ansibleProject(projectId: 'ansible', version: [ref: 'main', type: 'branch']) {
             ansiblePlaybook(
                 user: 'ansible',
                 playbook: 'playbooks/ping.yml',
-                envName: 'prod-eu'
+                envName: params.environment
             )
         }
     }
