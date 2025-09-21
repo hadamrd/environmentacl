@@ -5,6 +5,7 @@ import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
 import io.jenkins.plugins.pulsar.sharedcontainer.steps.SharedContainerStep;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -109,21 +110,26 @@ public class ContainerManager implements Serializable {
         return containerId;
     }
 
-    /** Execute a command inside this container */
     public int execute(String command, Launcher launcher, TaskListener listener)
             throws IOException, InterruptedException {
         return execute(command, null, launcher, listener);
     }
 
-    /** Execute a command inside this container with custom user */
     public int execute(String command, String user, Launcher launcher, TaskListener listener)
             throws IOException, InterruptedException {
         return execute(command, user, null, launcher, listener);
     }
 
-    /** Execute a command inside this container with custom user and environment variables */
     public int execute(
             String command, String user, Map<String, String> additionalEnv, Launcher launcher, TaskListener listener)
+            throws IOException, InterruptedException {
+        return execute(command, user, additionalEnv, null, launcher, listener);
+    }
+
+    /** Main execute method with optional stdin support */
+    public int execute(
+            String command, String user, Map<String, String> additionalEnv, 
+            InputStream stdin, Launcher launcher, TaskListener listener)
             throws IOException, InterruptedException {
 
         if (isKilled) {
@@ -135,7 +141,11 @@ public class ContainerManager implements Serializable {
         List<String> dockerCmd = new ArrayList<>();
         dockerCmd.add("docker");
         dockerCmd.add("exec");
-        dockerCmd.add("-i");
+        
+        // Add -i flag only if stdin is provided
+        if (stdin != null) {
+            dockerCmd.add("-i");
+        }
 
         // Add user if specified
         if (user != null && !user.trim().isEmpty()) {
@@ -160,11 +170,19 @@ public class ContainerManager implements Serializable {
         dockerCmd.add("-c");
         dockerCmd.add(command);
 
-        return launcher.launch()
+        // Build launcher with optional stdin
+        Launcher.ProcStarter procStarter = launcher.launch()
                 .cmds(dockerCmd)
                 .stdout(listener.getLogger())
                 .stderr(listener.getLogger())
-                .quiet(true)
+                .quiet(true);
+        
+        // Add stdin only if provided
+        if (stdin != null) {
+            procStarter = procStarter.stdin(stdin);
+        }
+
+        return procStarter
                 .start()
                 .joinWithTimeout(300, TimeUnit.SECONDS, listener);
     }

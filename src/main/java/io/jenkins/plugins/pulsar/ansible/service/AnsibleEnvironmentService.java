@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.jenkins.plugins.pulsar.ansible.AnsibleProjectsGlobalConfiguration;
-import io.jenkins.plugins.pulsar.ansible.model.AnsibleEnvironment;
+import io.jenkins.plugins.pulsar.ansible.model.AnsibleEnvGroupConfig;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleProject;
 import io.jenkins.plugins.pulsar.environmentacl.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.pulsar.environmentacl.model.EnvironmentGroup;
@@ -27,12 +27,7 @@ public class AnsibleEnvironmentService {
         }
         return null;
     }
-
-    /** Get vault credential ID for an environment and vault ID */
-    public String getVaultCredentialForEnvironment(String envName, String vaultId) {
-        return envAclConfig.getVaultCredentialId(envName, vaultId);
-    }
-
+    
     /** Get the rendered inventory path for a specific environment */
     public String getInventoryPath(String projectId, String envName) {
         AnsibleProject project = ansibleConfig.getProjectById(projectId);
@@ -47,7 +42,7 @@ public class AnsibleEnvironmentService {
         }
 
         // Find the Ansible environment mapping for this group
-        AnsibleEnvironment ansibleEnv = project.getEnvironmentByGroup(envGroup.getName());
+        AnsibleEnvGroupConfig ansibleEnv = project.getEnvironmentByGroup(envGroup.getName());
         if (ansibleEnv == null) {
             throw new IllegalArgumentException("No Ansible inventory mapping found for group: " + envGroup.getName());
         }
@@ -65,8 +60,8 @@ public class AnsibleEnvironmentService {
         List<String> accessibleEnvs = new ArrayList<>();
 
         // For each environment group mapping in the Ansible project
-        for (AnsibleEnvironment ansibleEnv : project.getEnvironments()) {
-            String groupName = ansibleEnv.getEnvGroup();
+        for (AnsibleEnvGroupConfig ansibleEnv : project.getEnvGroups()) {
+            String groupName = ansibleEnv.getGroupName();
 
             // Find the corresponding environment group
             EnvironmentGroup envGroup = envAclConfig.getEnvironmentGroups().stream()

@@ -10,18 +10,18 @@ import org.kohsuke.stapler.DataBoundSetter;
 public class AnsibleVault implements  Describable<AnsibleVault>, Serializable {
     private static final long serialVersionUID = 1L;
 
-    private final String name;
+    private String id;
     private String description;
     private String credentialId;
     private String vaultFile;
 
     @DataBoundConstructor
-    public AnsibleVault(String name) {
-        this.name = name;
+    public AnsibleVault(String id) {
+        this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public String getId() {
+        return id;
     }
 
     public String getDescription() {
@@ -34,6 +34,11 @@ public class AnsibleVault implements  Describable<AnsibleVault>, Serializable {
 
     public String getVaultFile() {
         return vaultFile;
+    }
+
+    @DataBoundSetter
+    public void setId(String id) {
+        this.id = id;
     }
 
     @DataBoundSetter

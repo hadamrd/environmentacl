@@ -5,7 +5,11 @@ unclassified:
         repository: "https://github.com/hadamrd/ansible"
         defaultBranch: "main"
         execEnv: "local/ansible:slim"
-        environments:
-          - envGroup: "production"
-            inventoryPath: "inventory/prod"
+        envGroups:
+          - groupName: "production"
+            inventoryPathTemplate: "inventory/prod"
+            vaultIds: ["prod-vault"]
         ansibleConfig: "${readFile:src/test/resources/jenkins-config/ansible/ansible.cfg}"
+        vaults:
+          - id: "prod-vault"
+            credentialId: "prod-ansible-key"

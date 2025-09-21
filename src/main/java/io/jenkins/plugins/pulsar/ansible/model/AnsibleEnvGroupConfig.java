@@ -9,45 +9,45 @@ import java.util.List;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class AnsibleEnvironment implements Describable<AnsibleEnvironment>, Serializable {
+public class AnsibleEnvGroupConfig implements Describable<AnsibleEnvGroupConfig>, Serializable {
     private static final long serialVersionUID = 1L;
 
-    private String envGroup;
+    private String groupName;
     private String description;
-    private String inventoryPath;
+    private String inventoryPathTemplate;
     private List<String> sshKeys;
-    private List<String> vaults;
+    private List<String> vaultIds;
 
     @DataBoundConstructor
-    public AnsibleEnvironment(String group) {
-        this.envGroup = group;
+    public AnsibleEnvGroupConfig(String group) {
+        this.groupName = group;
         this.sshKeys = new ArrayList<>();
-        this.vaults = new ArrayList<>();
+        this.vaultIds = new ArrayList<>();
     }
 
-    public String getEnvGroup() {
-        return envGroup;
+    public String getGroupName() {
+        return groupName;
     }
 
     public String getDescription() {
         return description;
     }
 
-    public String getInventoryPath() {
-        return inventoryPath;
+    public String getInventoryPathTemplate() {
+        return inventoryPathTemplate;
     }
 
     public List<String> getSshKeys() {
         return sshKeys != null ? sshKeys : new ArrayList<>();
     }
 
-    public List<String> getVaults() {
-        return vaults != null ? vaults : new ArrayList<>();
+    public List<String> getVaultIds() {
+        return vaultIds != null ? vaultIds : new ArrayList<>();
     }
 
     @DataBoundSetter
-    public void setEnvGroup(String group) {
-        this.envGroup = group;
+    public void setGroupName(String group) {
+        this.groupName = group;
     }
 
     @DataBoundSetter
@@ -56,8 +56,8 @@ public class AnsibleEnvironment implements Describable<AnsibleEnvironment>, Seri
     }
 
     @DataBoundSetter
-    public void setInventoryPath(String inventoryPath) {
-        this.inventoryPath = inventoryPath;
+    public void setInventoryPathTemplate(String inventoryPath) {
+        this.inventoryPathTemplate = inventoryPath;
     }
 
     @DataBoundSetter
@@ -66,12 +66,12 @@ public class AnsibleEnvironment implements Describable<AnsibleEnvironment>, Seri
     }
 
     @DataBoundSetter
-    public void setVaults(List<String> vaults) {
-        this.vaults = vaults != null ? vaults : new ArrayList<>();
+    public void setVaultIds(List<String> vaults) {
+        this.vaultIds = vaults != null ? vaults : new ArrayList<>();
     }
 
     @Extension
-    public static class DescriptorImpl extends Descriptor<AnsibleEnvironment> {
+    public static class DescriptorImpl extends Descriptor<AnsibleEnvGroupConfig> {
         @Override
         public String getDisplayName() {
             return "Ansible Environment";
@@ -79,7 +79,7 @@ public class AnsibleEnvironment implements Describable<AnsibleEnvironment>, Seri
     }
 
     public String getRenderedInventoryPath(String envName) {
-        String template = getInventoryPath();
+        String template = getInventoryPathTemplate();
         // Simple template replacement - {{env}} becomes the actual env name
         return template.replace("{{env}}", envName.toLowerCase());
     }

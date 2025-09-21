@@ -1,8 +1,10 @@
 package io.jenkins.plugins.pulsar.ansible.steps;
 
+import hudson.AbortException;
 import hudson.Launcher;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.util.Secret;
 import io.jenkins.plugins.pulsar.ansible.AnsibleProjectsGlobalConfiguration;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleProject;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleVault;
@@ -12,10 +14,18 @@ import io.jenkins.plugins.pulsar.shared.LaunchHelper;
 import io.jenkins.plugins.pulsar.sharedcontainer.service.ContainerManager;
 import io.jenkins.plugins.pulsar.sharedcontainer.steps.SharedContainerStep;
 import io.jenkins.plugins.pulsar.sshenv.service.SshAgent;
+
+import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
+
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 
 /**
  * Manages Ansible project execution environment with SSH agent, vault files, and project setup.
@@ -39,7 +49,7 @@ public class AnsibleContext implements Serializable {
     private SshAgent sshAgent;
     private String vaultDir;
     private List<String> loadedSshCredentialIds;
-    private final Map<String, String> setupVaultCredentials;
+    private Map<String, String> setupVaultCredentials;
 
     // Lifecycle management
     private int referenceCount = 1;
@@ -120,18 +130,13 @@ public class AnsibleContext implements Serializable {
 
         if (initialized) return;
 
-        Run<?, ?> run = stepContext.get(Run.class);
-
         listener.getLogger().println("Setting up Ansible environment...");
 
         // 1. Create/get shared container using existing system
-        this.container = createOrGetContainer(containerOptions, launcher, listener);
-
-        // 2. Setup SSH agent and keys
-        setupSshAgent(run, launcher, listener);
-
-        // 3. Setup vault files
-        setupVaultFiles(run, launcher, listener);
+        container = createOrGetContainer(containerOptions, launcher, listener);
+        sshAgent = SshAgent.getInstance(nodeName);
+        sshAgent.start(launcher, listener);
+        container.setEnv("SSH_AUTH_SOCK", sshAgent.getSocketPath());
 
         // 4. Setup project (checkout, ansible.cfg)
         setupProject(launcher, listener);
@@ -150,50 +155,57 @@ public class AnsibleContext implements Serializable {
     }
 
     /** Setup SSH agent with all required keys */
-    private void setupSshAgent(Run<?, ?> run, Launcher launcher, TaskListener listener) throws Exception {
+    public void setupEnvSshKeys(Run<?, ?> run, Launcher launcher, TaskListener listener, String envName) throws Exception {
         listener.getLogger().println("Setting up SSH agent...");
+        String envSshCredentialId = envService.getSshCredentialForEnvironment(projectId, envName);
+        if (envSshCredentialId == null) {
+            listener.getLogger().println("No SSH keys configured for environment: " + envName);
+            return;
+        }
 
-        // Get SSH agent singleton
-        this.sshAgent = SshAgent.getInstance(nodeName);
-        sshAgent.start(launcher, listener);
+        if (loadedSshCredentialIds == null) {
+            loadedSshCredentialIds = new ArrayList<>();
+        }
 
-        // Get all SSH credential IDs for this project
-        this.loadedSshCredentialIds = getAllSshCredentialIds();
-
-        if (!loadedSshCredentialIds.isEmpty()) {
-            sshAgent.loadKeys(loadedSshCredentialIds, run, launcher, listener);
-
-            // Set SSH_AUTH_SOCK in container environment
-            container.setEnv("SSH_AUTH_SOCK", sshAgent.getSocketPath());
-
-            listener.getLogger().println("SSH agent ready with " + loadedSshCredentialIds.size() + " keys");
-        } else {
-            listener.getLogger().println("No SSH keys configured for this project");
+        if (!loadedSshCredentialIds.contains(envSshCredentialId)) {
+            sshAgent.loadKeys(Arrays.asList(envSshCredentialId), run, launcher, listener);
+            loadedSshCredentialIds.add(envSshCredentialId);
         }
     }
 
     /** Setup vault password files */
-    private void setupVaultFiles(Run<?, ?> run, Launcher launcher, TaskListener listener) throws Exception {
+    public void setupVaultFiles(Run<?, ?> run, Launcher launcher, TaskListener listener, String envName) throws Exception {
         listener.getLogger().println("Setting up vault files...");
 
         this.vaultDir = "/ansible/vaults";
         container.execute("mkdir -p " + vaultDir, launcher, listener);
 
-        // Setup vault files for all configured vaults
-        for (AnsibleVault vault : project.getVaults()) {
-            String credentialId = vault.getCredentialId();
-            if (credentialId != null && !credentialId.trim().isEmpty()) {
-                setupVaultFile(vault.getName(), credentialId, run, launcher, listener);
-                setupVaultCredentials.put(vault.getName(), credentialId);
-            }
+        // Initialize setupVaultCredentials if it's null
+        if (this.setupVaultCredentials == null) {
+            this.setupVaultCredentials = new HashMap<>();
         }
 
-        if (!setupVaultCredentials.isEmpty()) {
-            listener.getLogger().println("Vault files ready: " + setupVaultCredentials.keySet());
+        List<AnsibleVault> envVaults = project.getEnvVaults(envName);
+
+        if (envVaults.isEmpty()) {
+            listener.getLogger().println("No vaults configured for environment: " + envName);
+            return;
+        }
+
+        // Setup vault files for all vaults associated with this environment's group
+        for (AnsibleVault vault : envVaults) {
+            String vaultCredentialId = vault.getCredentialId();
+            
+            if (vaultCredentialId != null && !vaultCredentialId.trim().isEmpty()) {
+                if (!setupVaultCredentials.containsKey(vault.getId())) {
+                    setupVaultFile(vault.getId(), vaultCredentialId, run, launcher, listener);
+                    setupVaultCredentials.put(vault.getId(), vaultCredentialId);
+                }
+            }
         }
     }
 
-    /** Setup a single vault file */
+    /** Setup a single vault file securely using stdin */
     private void setupVaultFile(
             String vaultName, String credentialId, Run<?, ?> run, Launcher launcher, TaskListener listener)
             throws Exception {
@@ -207,12 +219,20 @@ public class AnsibleContext implements Serializable {
 
         String vaultFilePath = vaultDir + "/" + vaultName + ".txt";
 
-        // Write vault password to file securely
-        String writeCmd = String.format(
-                "cat > %s << 'EOF'\n%s\nEOF && chmod 600 %s", vaultFilePath, vaultPassword, vaultFilePath);
+        // Command that reads from stdin and writes to file with secure permissions
+        String secureWriteCmd = String.format("umask 077 && cat > %s && chmod 600 %s", vaultFilePath, vaultFilePath);
 
-        container.execute(writeCmd, launcher, listener);
-        listener.getLogger().println("Vault file created: " + vaultName);
+        // Create input stream with vault password
+        ByteArrayInputStream passwordInput = new ByteArrayInputStream(vaultPassword.getBytes());
+
+        // Execute securely with stdin - password not visible in logs or process list
+        int result = container.execute(secureWriteCmd, null, null, passwordInput, launcher, listener);
+
+        if (result == 0) {
+            listener.getLogger().println("Vault file created: " + vaultName);
+        } else {
+            throw new Exception("Failed to create vault file: " + vaultName + " (exit code: " + result + ")");
+        }
     }
 
     /** Setup project files (checkout, ansible.cfg) */
@@ -360,27 +380,9 @@ public class AnsibleContext implements Serializable {
         }
     }
 
-    // Helper methods
-
     /** Get inventory path for environment */
     public String getInventoryPath(String envName) throws Exception {
         return envService.getInventoryPath(projectId, envName);
-    }
-
-    /** Get all SSH credential IDs for this project */
-    private List<String> getAllSshCredentialIds() {
-        Set<String> credentialIds = new HashSet<>();
-
-        // Get SSH credentials for all environments this project can access
-        List<String> accessibleEnvs = envService.getAccessibleEnvironments(projectId);
-        for (String envName : accessibleEnvs) {
-            String sshCredentialId = envService.getSshCredentialForEnvironment(projectId, envName);
-            if (sshCredentialId != null && !sshCredentialId.trim().isEmpty()) {
-                credentialIds.add(sshCredentialId);
-            }
-        }
-
-        return new ArrayList<>(credentialIds);
     }
 
     /** Create SharedContainerStep for existing container system */
@@ -407,9 +409,11 @@ public class AnsibleContext implements Serializable {
     /** Get secret credential value */
     private String getSecretCredential(String credentialId, Run<?, ?> run) {
         try {
-            // This would need proper implementation with Jenkins credentials binding
-            // For now, return placeholder
-            return "vault-password-placeholder";
+            StringCredentials stringCredential = CredentialsProvider.findCredentialById(credentialId, StringCredentials.class, run);
+            if (stringCredential == null) {
+                throw new AbortException("Credential for vault not found, make sure it is configured in Jenkins");
+            }
+            return Secret.toString(stringCredential.getSecret());
         } catch (Exception e) {
             return null;
         }

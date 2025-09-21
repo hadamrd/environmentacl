@@ -1,6 +1,5 @@
 package io.jenkins.plugins.pulsar.ansible.steps;
 
-import hudson.AbortException;
 import hudson.Launcher;
 import hudson.model.TaskListener;
 import java.util.List;
@@ -48,7 +47,7 @@ public class AnsibleProjectStepExecution extends SynchronousNonBlockingStepExecu
 
             listener.getLogger().println("Ansible project execution completed successfully");
             return null;
-            
+
         } finally {
             // Always cleanup
             if (ansibleContext != null && cleanup) {

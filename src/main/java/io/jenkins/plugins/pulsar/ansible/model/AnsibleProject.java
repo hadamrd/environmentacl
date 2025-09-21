@@ -3,9 +3,13 @@ package io.jenkins.plugins.pulsar.ansible.model;
 import hudson.Extension;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
+import io.jenkins.plugins.pulsar.environmentacl.EnvironmentACLGlobalConfiguration;
+import io.jenkins.plugins.pulsar.environmentacl.model.EnvironmentGroup;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
@@ -19,7 +23,7 @@ public class AnsibleProject implements Describable<AnsibleProject>, Serializable
     private String defaultBranch;
     private String ansibleConfig;
     private List<AnsibleVault> vaults;
-    private List<AnsibleEnvironment> environments;
+    private List<AnsibleEnvGroupConfig> envGroups;
 
     @DataBoundConstructor
     public AnsibleProject(String id, String repository) {
@@ -28,7 +32,7 @@ public class AnsibleProject implements Describable<AnsibleProject>, Serializable
         this.defaultBranch = "main";
         this.ansibleConfig = getDefaultAnsibleConfig();
         this.vaults = new ArrayList<>();
-        this.environments = new ArrayList<>();
+        this.envGroups = new ArrayList<>();
     }
 
     // Getters
@@ -82,8 +86,8 @@ public class AnsibleProject implements Describable<AnsibleProject>, Serializable
         return vaults != null ? vaults : new ArrayList<>();
     }
 
-    public List<AnsibleEnvironment> getEnvironments() {
-        return environments != null ? environments : new ArrayList<>();
+    public List<AnsibleEnvGroupConfig> getEnvGroups() {
+        return envGroups != null ? envGroups : new ArrayList<>();
     }
 
     // Setters
@@ -108,23 +112,49 @@ public class AnsibleProject implements Describable<AnsibleProject>, Serializable
     }
 
     @DataBoundSetter
-    public void setEnvironments(List<AnsibleEnvironment> environments) {
-        this.environments = environments != null ? environments : new ArrayList<>();
+    public void setEnvGroups(List<AnsibleEnvGroupConfig> environments) {
+        this.envGroups = environments != null ? environments : new ArrayList<>();
     }
 
     // Helper methods
     public AnsibleVault getVaultByName(String vaultName) {
         return getVaults().stream()
-                .filter(vault -> vaultName.equals(vault.getName()))
+                .filter(vault -> vaultName.equals(vault.getId()))
                 .findFirst()
                 .orElse(null);
     }
 
-    public AnsibleEnvironment getEnvironmentByGroup(String group) {
-        return getEnvironments().stream()
-                .filter(env -> group.equals(env.getEnvGroup()))
+    public AnsibleVault getVaultById(String vaultId) {
+        return getVaults().stream()
+                .filter(vault -> vaultId.equals(vault.getId()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    public AnsibleEnvGroupConfig getEnvironmentByGroup(String group) {
+        return getEnvGroups().stream()
+                .filter(env -> group.equals(env.getGroupName()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public List<AnsibleVault> getEnvVaults(String envName) {
+        EnvironmentGroup envGroup = EnvironmentACLGlobalConfiguration.get().getEnvironmentGroupForEnvironment(envName);
+        
+        if (envGroup == null) {
+            return new ArrayList<>();
+        }
+
+        List<String> groupVaultIds = getEnvGroups().stream()
+                .filter(env -> envGroup.getName().equals(env.getGroupName()))
+                .flatMap(env -> env.getVaultIds().stream())
+                .distinct()
+                .collect(Collectors.toList());
+
+        return groupVaultIds.stream()
+                .map(this::getVaultById)
+                .filter(vault -> vault != null)
+                .collect(Collectors.toList());
     }
 
     @Extension

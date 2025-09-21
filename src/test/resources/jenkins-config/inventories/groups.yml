@@ -9,6 +9,4 @@ unclassified:
         tags:
           - "production"
           - "critical"
-        vaultCredentials:
-          - vaultId: "prod-vault"
-            credentialId: "prod-ansible-key"
+

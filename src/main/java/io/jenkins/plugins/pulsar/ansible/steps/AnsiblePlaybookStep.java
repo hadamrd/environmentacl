@@ -2,6 +2,7 @@ package io.jenkins.plugins.pulsar.ansible.steps;
 
 import hudson.Extension;
 import hudson.Launcher;
+import hudson.model.Run;
 import hudson.model.TaskListener;
 import java.io.Serializable;
 import java.util.Map;
@@ -102,11 +103,17 @@ public class AnsiblePlaybookStep extends Step implements Serializable {
             TaskListener listener = getContext().get(TaskListener.class);
             Launcher launcher = getContext().get(Launcher.class);
             AnsibleContext ansibleContext = getContext().get(AnsibleContext.class);
+            Run<?, ?> run = getContext().get(Run.class);
 
             if (ansibleContext == null) {
-                listener.error("ansiblePlaybook must be used inside an ansibleProject block");
-                return -1; // Return error code instead of throwing
+                throw new RuntimeException("ansiblePlaybook must be used inside an ansibleProject block");
             }
+
+            // 2. Setup SSH agent and keys
+            ansibleContext.setupEnvSshKeys(run, launcher, listener, step.getEnvName());
+
+            // 3. Setup vault files
+            ansibleContext.setupVaultFiles(run, launcher, listener, step.getEnvName());
 
             listener.getLogger().println("=== Running Ansible Playbook ===");
             listener.getLogger().println("Playbook: " + step.playbook);
