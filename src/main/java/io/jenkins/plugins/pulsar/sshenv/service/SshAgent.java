@@ -276,10 +276,11 @@ public class SshAgent implements Serializable {
                 listener.getLogger().println("Agent stopped successfully");
             }
 
-            // Cleanup socket directory
-            if (socketDir != null) {
-                List<String> cleanupCmd = Arrays.asList("rm", "-rf", socketDir);
-                LaunchHelper.executeQuietlyDiscardOutput(launcher, cleanupCmd, 5, listener);
+            // Only clean up the specific socket file if it still exists (defensive)
+            // Don't delete the entire directory - could interfere with other processes
+            if (socketPath != null) {
+                List<String> cleanupSocketCmd = Arrays.asList("rm", "-f", socketPath);
+                LaunchHelper.executeQuietlyDiscardOutput(launcher, cleanupSocketCmd, 10, listener);
             }
 
             agentPid = null;

@@ -253,7 +253,7 @@ public class ContainerManager implements Serializable {
     }
 
     /** Check if container is still running */
-    private boolean isRunning(Launcher launcher, TaskListener listener) {
+    public boolean isRunning(Launcher launcher, TaskListener listener) {
         if (isKilled || containerId == null) {
             return false;
         }

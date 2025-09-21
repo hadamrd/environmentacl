@@ -342,6 +342,7 @@ public class AnsibleContext implements Serializable {
     /** Release reference - similar to ContainerManager.release */
     public void release(boolean cleanup, Launcher launcher, TaskListener listener) {
         synchronized (AnsibleContext.class) {
+            listener.getLogger().println("Ansible context reference count: " + referenceCount);
             referenceCount--;
 
             if (referenceCount <= 0 && cleanup) {
@@ -381,7 +382,7 @@ public class AnsibleContext implements Serializable {
 
     /** Check if context is still valid */
     private boolean isValid(Launcher launcher, TaskListener listener) {
-        return !isKilled && container != null && !container.isKilled();
+        return !isKilled && container != null && container.isRunning(launcher, listener);
     }
 
     /** Ensure context is initialized */

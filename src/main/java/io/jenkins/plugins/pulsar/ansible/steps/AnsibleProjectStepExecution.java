@@ -49,12 +49,12 @@ public class AnsibleProjectStepExecution extends SynchronousNonBlockingStepExecu
             return null;
 
         } finally {
-            // Always cleanup
-            if (ansibleContext != null && cleanup) {
+            // ALWAYS release reference - the cleanup flag controls cleanup behavior
+            if (ansibleContext != null) {
                 try {
                     ansibleContext.release(cleanup, launcher, listener);
                 } catch (Exception cleanupError) {
-                    listener.error("Warning: Cleanup failed: " + cleanupError.getMessage());
+                    listener.error("Warning: Release failed: " + cleanupError.getMessage());
                     // Don't throw - cleanup errors shouldn't fail the build
                 }
             }
