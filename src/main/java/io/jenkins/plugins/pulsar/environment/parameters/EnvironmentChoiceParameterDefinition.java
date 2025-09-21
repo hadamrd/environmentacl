@@ -1,9 +1,11 @@
-package io.jenkins.plugins.pulsar.environment.parameter;
+package io.jenkins.plugins.pulsar.environment.parameters;
 
 import hudson.Extension;
+import hudson.model.Job;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
+import hudson.model.TopLevelItem;
 import io.jenkins.plugins.pulsar.environment.service.EnvironmentACLChecker;
 
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.logging.Logger;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest2;
 
 public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
@@ -23,24 +26,39 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
         setDescription(description);
     }
 
-    public List<String> getChoices(String jobFullName) {
+    private String getCurrentJobName() {
         try {
-            List<String> accessibleEnvs = EnvironmentACLChecker.getAccessibleEnvironments(jobFullName);
+            StaplerRequest2 req = Stapler.getCurrentRequest2();
+            if (req != null) {
+                // Try to find a Job ancestor in the request
+                Object ancestor = req.findAncestorObject(Job.class);
+                if (ancestor instanceof Job) {
+                    Job<?, ?> job = (Job<?, ?>) ancestor;
+                    return job.getFullName();
+                }
+                
+                // Try to find TopLevelItem
+                ancestor = req.findAncestorObject(TopLevelItem.class);
+                if (ancestor instanceof Job) {
+                    Job<?, ?> job = (Job<?, ?>) ancestor;
+                    return job.getFullName();
+                }
+            }
+            return "*";
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error getting current job name: " + e.getMessage(), e);
+            return "*";
+        }
+    }
 
-            // Secure logging - only to Jenkins system log
-            LOGGER.log(
-                    Level.FINE,
-                    "Environment parameter ''{0}'' for job ''{1}'' returned {2} accessible environments",
-                    new Object[] {getName(), jobFullName, accessibleEnvs.size()});
-
-            // Return actual choices only - no error messages mixed in
-            return accessibleEnvs;
-
+    public List<String> getChoices() {
+        String jobFullName = getCurrentJobName();
+        try {
+            return EnvironmentACLChecker.getAccessibleEnvironments(jobFullName);
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error loading environments for parameter ''{0}'': {1}", new Object[] {
                 getName(), e.getMessage()
             });
-            // Return empty list on error - let UI handle it
             return List.of();
         }
     }
@@ -48,15 +66,12 @@ public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
     @Override
     public ParameterValue createValue(StaplerRequest2 req, JSONObject jo) {
         String value = jo.optString("value", "");
-        // No need to filter out error messages since we don't add them to choices
         return new StringParameterValue(getName(), value, getDescription());
     }
 
     @Override
     public ParameterValue getDefaultParameterValue() {
-        // FIXME: Find a way to get full job name here!
-        String currJobFullName = "*";
-        List<String> choices = getChoices(currJobFullName);
+        List<String> choices = getChoices();
         String defaultValue = choices.isEmpty() ? "" : choices.get(0);
         return new StringParameterValue(getName(), defaultValue, getDescription());
     }

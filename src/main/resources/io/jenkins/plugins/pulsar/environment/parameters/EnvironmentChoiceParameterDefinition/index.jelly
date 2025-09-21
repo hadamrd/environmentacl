@@ -3,12 +3,13 @@
   <f:entry title="${it.name}" description="${it.description}">
     <div name="parameter">
       <input type="hidden" name="name" value="${it.name}" />
-      
+      <j:set var="choices" value="${it.choices}" />
+
       <j:choose>
-        <j:when test="${!it.choices.isEmpty()}">
+        <j:when test="${!choices.isEmpty()}">
           <!-- Normal case: show choices -->
           <select name="value" class="jenkins-input">
-            <j:forEach var="choice" items="${it.choices}">
+            <j:forEach var="choice" items="${choices}">
               <option value="${choice}">
                 <j:out value="${choice}"/>
               </option>

@@ -121,6 +121,7 @@
       <groupId>org.jenkinsci.plugins</groupId>
       <artifactId>pipeline-model-definition</artifactId>
     </dependency>
+
     <!-- Utility libraries -->
     <dependency>
       <groupId>com.github.mwiede</groupId>
@@ -220,17 +221,13 @@
         <extensions>true</extensions>
         <configuration>
           <compatibleSinceVersion>${jenkins.version}</compatibleSinceVersion>
-          <pluginFirstClassLoader>true</pluginFirstClassLoader>
-          <maskClasses>groovy.grape org.apache.commons.codec</maskClasses>
           <systemProperties>
-            <hudson.ClassicPluginStrategy.useAntClassLoader>false</hudson.ClassicPluginStrategy.useAntClassLoader>
             <hudson.Main.development>true</hudson.Main.development>
             <casc.jenkins.config>${project.basedir}/src/test/resources/jenkins-config</casc.jenkins.config>
             <io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>5000</io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>
             <jenkins.install.runSetupWizard>false</jenkins.install.runSetupWizard>
             <hudson.model.ParametersAction.keepUndefinedParameters>false</hudson.model.ParametersAction.keepUndefinedParameters>
             <hudson.model.DirectoryBrowserSupport.CSP>default-src 'self'; style-src 'self' 'unsafe-inline';</hudson.model.DirectoryBrowserSupport.CSP>
-            <hudson.Main.development>true</hudson.Main.development>
             <java.util.logging.config.file>${project.basedir}/log.properties</java.util.logging.config.file>
           </systemProperties>
           <webApp>
@@ -249,16 +246,6 @@
         <spotbugs.skip>true</spotbugs.skip>
         <maven.test.skip>true</maven.test.skip>
         <maven.javadoc.skip>true</maven.javadoc.skip>
-      </properties>
-    </profile>
-    <profile>
-      <id>quick</id>
-      <properties>
-        <maven.test.skip>true</maven.test.skip>
-        <spotless.check.skip>true</spotless.check.skip>
-        <spotbugs.skip>true</spotbugs.skip>
-        <maven.javadoc.skip>true</maven.javadoc.skip>
-        <checkstyle.skip>true</checkstyle.skip>
       </properties>
     </profile>
     <profile>
