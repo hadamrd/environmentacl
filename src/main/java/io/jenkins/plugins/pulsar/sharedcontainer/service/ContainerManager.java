@@ -17,7 +17,7 @@ public class ContainerManager implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private static final transient Logger LOGGER = Logger.getLogger(ContainerManager.class.getName());
-    
+
     public static final String PLUGIN_LABEL = "io.jenkins.sharedcontainer.managed=true";
     public static final String IMAGE_LABEL_PREFIX = "io.jenkins.sharedcontainer.image=";
     public static final String NODE_LABEL_PREFIX = "io.jenkins.sharedcontainer.node=";
@@ -125,8 +125,12 @@ public class ContainerManager implements Serializable {
 
     /** Main execute method with optional stdin support */
     public int execute(
-            String command, String user, Map<String, String> additionalEnv, 
-            InputStream stdin, Launcher launcher, TaskListener listener)
+            String command,
+            String user,
+            Map<String, String> additionalEnv,
+            InputStream stdin,
+            Launcher launcher,
+            TaskListener listener)
             throws IOException, InterruptedException {
 
         if (isKilled) {
@@ -138,7 +142,7 @@ public class ContainerManager implements Serializable {
         List<String> dockerCmd = new ArrayList<>();
         dockerCmd.add("docker");
         dockerCmd.add("exec");
-        
+
         // Add -i flag only if stdin is provided
         if (stdin != null) {
             dockerCmd.add("-i");
@@ -173,15 +177,13 @@ public class ContainerManager implements Serializable {
                 .stdout(listener.getLogger())
                 .stderr(listener.getLogger())
                 .quiet(true);
-        
+
         // Add stdin only if provided
         if (stdin != null) {
             procStarter = procStarter.stdin(stdin);
         }
 
-        return procStarter
-                .start()
-                .joinWithTimeout(300, TimeUnit.SECONDS, listener);
+        return procStarter.start().joinWithTimeout(300, TimeUnit.SECONDS, listener);
     }
 
     /** Set environment variable for this container instance */

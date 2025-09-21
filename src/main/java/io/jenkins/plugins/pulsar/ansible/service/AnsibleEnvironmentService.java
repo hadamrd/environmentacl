@@ -1,13 +1,12 @@
 package io.jenkins.plugins.pulsar.ansible.service;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import io.jenkins.plugins.pulsar.ansible.AnsibleProjectsGlobalConfiguration;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleEnvGroupConfig;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleProject;
 import io.jenkins.plugins.pulsar.environmentacl.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.pulsar.environmentacl.model.EnvironmentGroup;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AnsibleEnvironmentService {
     private final AnsibleProjectsGlobalConfiguration ansibleConfig;
@@ -27,7 +26,7 @@ public class AnsibleEnvironmentService {
         }
         return null;
     }
-    
+
     /** Get the rendered inventory path for a specific environment */
     public String getInventoryPath(String projectId, String envName) {
         AnsibleProject project = ansibleConfig.getProjectById(projectId);

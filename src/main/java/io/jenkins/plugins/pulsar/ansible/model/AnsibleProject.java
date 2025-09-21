@@ -5,7 +5,6 @@ import hudson.model.Describable;
 import hudson.model.Descriptor;
 import io.jenkins.plugins.pulsar.environmentacl.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.pulsar.environmentacl.model.EnvironmentGroup;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -75,7 +74,7 @@ public class AnsibleProject implements Describable<AnsibleProject>, Serializable
                pipelining = True
                stdout_callback = default
                nocows = 1
-               
+
                [ssh_connection]
                ssh_args = -o ControlMaster=auto -o ControlPersist=60s
                pipelining = True
@@ -140,7 +139,7 @@ public class AnsibleProject implements Describable<AnsibleProject>, Serializable
 
     public List<AnsibleVault> getEnvVaults(String envName) {
         EnvironmentGroup envGroup = EnvironmentACLGlobalConfiguration.get().getEnvironmentGroupForEnvironment(envName);
-        
+
         if (envGroup == null) {
             return new ArrayList<>();
         }

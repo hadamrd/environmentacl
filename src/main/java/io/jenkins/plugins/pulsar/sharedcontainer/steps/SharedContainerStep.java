@@ -135,10 +135,7 @@ public class SharedContainerStep extends Step implements Serializable {
 
             try {
                 // Store container in context for containerExec steps
-                context.newBodyInvoker()
-                        .withContext(container)
-                        .start()
-                        .get();
+                context.newBodyInvoker().withContext(container).start().get();
                 return false;
             } catch (Exception e) {
                 container.release(step.getCleanup(), launcher, listener);

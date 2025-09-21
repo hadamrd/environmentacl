@@ -7,7 +7,7 @@ import java.io.Serializable;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-public class AnsibleVault implements  Describable<AnsibleVault>, Serializable {
+public class AnsibleVault implements Describable<AnsibleVault>, Serializable {
     private static final long serialVersionUID = 1L;
 
     private String id;

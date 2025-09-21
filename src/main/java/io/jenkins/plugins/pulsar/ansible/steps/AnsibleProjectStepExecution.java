@@ -27,9 +27,9 @@ public class AnsibleProjectStepExecution extends SynchronousNonBlockingStepExecu
         StepContext context = getContext();
         TaskListener listener = context.get(TaskListener.class);
         Launcher launcher = context.get(Launcher.class);
-        
+
         AnsibleContext ansibleContext = null;
-        
+
         try {
             // Create Ansible context
             ansibleContext = AnsibleContext.getOrCreate(projectId, version, context, containerOptions);
