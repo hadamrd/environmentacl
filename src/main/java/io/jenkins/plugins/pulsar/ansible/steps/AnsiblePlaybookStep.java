@@ -129,7 +129,7 @@ public class AnsiblePlaybookStep extends Step implements Serializable {
                 throw new RuntimeException("Ansible playbook failed with exit code: " + exitCode);
             }
 
-            return exitCode; // Always return the code, let parent handle it
+            return exitCode;
         }
     }
 }
