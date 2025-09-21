@@ -4,7 +4,7 @@ jobs:
         definition {
           cps {
             script('''@Library('pulsar-library') _
-        test_ansible_step()'''.stripIndent())
+      test_ansible_step()'''.stripIndent())
             sandbox()
           }
         }
