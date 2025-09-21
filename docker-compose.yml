@@ -3,9 +3,10 @@ services:
     image: localhost:5000/jenkins-base-agent:latest
     group_add:
       - ${DOCKER_GID:-1001} # To be updated with your actuall docker group (run getent group docker)
+    env_file:
+      - .secrets
     environment:
       - JENKINS_URL=http://host.docker.internal:8080
-      - JENKINS_SECRET=43a9cfc1552cc89cdaf3ddd942b4c4d6619a74c7b8f52cc61787f0048efb1b69
       - JENKINS_AGENT_NAME=agent
       - JENKINS_AGENT_WORKDIR=/home/jenkins/agent 
       - JENKINS_AGENT_LABELS=dev
