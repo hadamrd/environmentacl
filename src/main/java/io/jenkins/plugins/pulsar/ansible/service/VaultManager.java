@@ -7,7 +7,8 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.Secret;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleVault;
-import io.jenkins.plugins.pulsar.sharedcontainer.service.ContainerManager;
+import io.jenkins.plugins.pulsar.container.service.ContainerManager;
+
 import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.util.*;

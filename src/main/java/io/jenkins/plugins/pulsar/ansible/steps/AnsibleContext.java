@@ -9,10 +9,11 @@ import io.jenkins.plugins.pulsar.ansible.model.AnsibleVault;
 import io.jenkins.plugins.pulsar.ansible.service.AnsibleEnvironmentService;
 import io.jenkins.plugins.pulsar.ansible.service.AnsiblePlaybookCommandBuilder;
 import io.jenkins.plugins.pulsar.ansible.service.VaultManager;
+import io.jenkins.plugins.pulsar.container.service.ContainerManager;
+import io.jenkins.plugins.pulsar.container.steps.SharedContainerStep;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
-import io.jenkins.plugins.pulsar.sharedcontainer.service.ContainerManager;
-import io.jenkins.plugins.pulsar.sharedcontainer.steps.SharedContainerStep;
-import io.jenkins.plugins.pulsar.sshenv.service.SshAgent;
+import io.jenkins.plugins.pulsar.ssh.service.SshAgent;
+
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -181,6 +182,7 @@ public class AnsibleContext implements Serializable {
     public void setupVaultFiles(Run<?, ?> run, Launcher launcher, TaskListener listener, String envName)
             throws Exception {
         List<AnsibleVault> envVaults = project.getEnvVaults(envName);
+
         vaultManager.setupVaultFiles(envVaults, run, launcher, listener);
     }
 

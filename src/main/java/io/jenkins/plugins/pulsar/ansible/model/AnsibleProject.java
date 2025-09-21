@@ -3,8 +3,9 @@ package io.jenkins.plugins.pulsar.ansible.model;
 import hudson.Extension;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import io.jenkins.plugins.pulsar.environmentacl.EnvironmentACLGlobalConfiguration;
-import io.jenkins.plugins.pulsar.environmentacl.model.EnvironmentGroup;
+import io.jenkins.plugins.pulsar.environment.EnvironmentACLGlobalConfiguration;
+import io.jenkins.plugins.pulsar.environment.model.EnvironmentGroup;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
