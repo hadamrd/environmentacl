@@ -6,7 +6,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.jenkinsci.plugins.workflow.steps.*;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -16,24 +15,24 @@ public class AnsibleProjectStep extends Step implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final String projectId;
-    private final Map<String, String> version; // {ref: "main", type: "branch"}
+    private final String ref;
 
     private List<String> containerOptions;
     private boolean cleanup = true;
     private int timeoutHours = 8;
 
     @DataBoundConstructor
-    public AnsibleProjectStep(String projectId, Map<String, String> version) {
+    public AnsibleProjectStep(String projectId, String ref) {
         this.projectId = projectId;
-        this.version = version;
+        this.ref = ref;
     }
 
     public String getProjectId() {
         return projectId;
     }
 
-    public Map<String, String> getVersion() {
-        return version;
+    public String getRef() {
+        return ref;
     }
 
     public List<String> getContainerOptions() {

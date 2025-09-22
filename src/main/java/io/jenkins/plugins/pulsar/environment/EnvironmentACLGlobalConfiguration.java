@@ -3,7 +3,6 @@ package io.jenkins.plugins.pulsar.environment;
 import hudson.Extension;
 import io.jenkins.plugins.pulsar.environment.model.ACLRule;
 import io.jenkins.plugins.pulsar.environment.model.EnvironmentGroup;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;

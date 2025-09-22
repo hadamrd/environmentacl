@@ -1,13 +1,12 @@
-package io.jenkins.plugins.pulsar.environment.step;
+package io.jenkins.plugins.pulsar.environment.steps;
 
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.environment.model.EnvironmentGroup;
 import io.jenkins.plugins.pulsar.environment.service.CredentialService;
 import io.jenkins.plugins.pulsar.environment.service.EnvironmentACLChecker;
-import io.jenkins.plugins.pulsar.environment.service.UserContextHelper;
-import io.jenkins.plugins.pulsar.environment.service.UserContextHelper.UserContext;
-
+import io.jenkins.plugins.pulsar.shared.UserContextHelper;
+import io.jenkins.plugins.pulsar.shared.UserContextHelper.UserContext;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;

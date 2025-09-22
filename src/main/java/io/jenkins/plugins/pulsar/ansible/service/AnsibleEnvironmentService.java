@@ -5,7 +5,6 @@ import io.jenkins.plugins.pulsar.ansible.model.AnsibleEnvGroupConfig;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleProject;
 import io.jenkins.plugins.pulsar.environment.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.pulsar.environment.model.EnvironmentGroup;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +18,7 @@ public class AnsibleEnvironmentService {
     }
 
     /** Get SSH credential ID for an environment by looking up its group */
-    public String getSshCredentialForEnvironment(String projectId, String envName) {
+    public String getEnvSshCred(String projectId, String envName) {
         // Find the environment group from Environment ACL plugin
         EnvironmentGroup envGroup = envAclConfig.getEnvironmentGroupForEnvironment(envName);
         if (envGroup != null) {

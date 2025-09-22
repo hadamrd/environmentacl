@@ -16,22 +16,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-// the tmp folder in this one should be settable
-// add of keys should be done with -t in case something went wrong and we dont kill the agent we
-// want the keys to get cleaned
-// isnt it better to maintain just one agent socket, but if one we might run into race
-// conditions where some pipeline cleans it up at the end but another pipline is still in need of it
-// => keeping a transient agent is better, or is it ?
-// The reference on the keys is useless we just need to clean it up
-// this agent will be called to instanciate one for the whole context of ansible step or ssh step
-// for example
-// will only be called by close of context of that step
-// if that wrapper step has a context that can survive more calls this agent will survive and will
-// be reused until the parent step cleanup is called
-
 /** Singleton SSH Agent manager that handles SSH keys across multiple contexts */
 public class SshAgent implements Serializable {
     private static final long serialVersionUID = 1L;
+    private static final String SSH_AGENTS_DIR = "/tmp/jenkins-ssh-agents";
 
     // Per-node singleton instances
     private static final Map<String, SshAgent> instances = new ConcurrentHashMap<>();
@@ -40,7 +28,7 @@ public class SshAgent implements Serializable {
     private final String nodeName;
     private String agentPid;
     private String socketPath;
-    private String socketDir;
+    private String expectedAgentOutput = "";
 
     // Track loaded keys with reference counting
     private final transient Map<String, Integer> loadedKeys = new ConcurrentHashMap<>();
@@ -60,7 +48,6 @@ public class SshAgent implements Serializable {
         }
     }
 
-    /** Start SSH agent if not already running */
     public void start(Launcher launcher, TaskListener listener) throws Exception {
         instanceLock.lock();
         try {
@@ -69,29 +56,32 @@ public class SshAgent implements Serializable {
                 return;
             }
 
-            // Generate unique paths
-            String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-            socketDir = "/tmp/ssh-agent-" + uuid;
-            this.socketPath = socketDir + "/agent.sock";
+            // Clear loaded keys tracking since we're starting fresh
+            loadedKeys.clear();
 
+            // Create consistent directory
+            String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+            this.socketPath = String.format("%s/agent-%s-%s.sock", SSH_AGENTS_DIR, nodeName, uuid);
+            
             listener.getLogger().println("Starting SSH agent: " + socketPath);
 
-            // Start SSH agent and capture output
+            // Create directory and start agent
             List<String> startCmd = Arrays.asList(
-                    "/bin/sh",
-                    "-c",
-                    String.format(
-                            "mkdir -p %s && chmod 700 %s && ssh-agent -s -a %s", socketDir, socketDir, socketPath));
+                "/bin/sh", "-c",
+                String.format("mkdir -p %s && chmod 700 %s && ssh-agent -s -a %s", 
+                             SSH_AGENTS_DIR, SSH_AGENTS_DIR, socketPath)
+            );
 
             String agentOutput = LaunchHelper.executeAndCapture(launcher, startCmd, 30, listener);
-
-            // Parse PID directly from output using regex
+            
             Pattern pattern = Pattern.compile("SSH_AGENT_PID=(\\d+)");
             Matcher matcher = pattern.matcher(agentOutput);
-
             if (matcher.find()) {
                 this.agentPid = matcher.group(1);
                 listener.getLogger().println("SSH agent started with PID: " + agentPid);
+
+                // Capture initial state (should be empty)
+                updateExpectedState(launcher, listener);
             } else {
                 throw new RuntimeException("Failed to extract PID from ssh-agent output: " + agentOutput);
             }
@@ -101,7 +91,7 @@ public class SshAgent implements Serializable {
         }
     }
 
-    /** Load SSH keys into the agent */
+    /** Load SSH keys into the agent using stdin (no temporary files) */
     public void loadKeys(List<String> credentialIds, Run<?, ?> run, Launcher launcher, TaskListener listener)
             throws Exception {
         if (credentialIds == null || credentialIds.isEmpty()) {
@@ -128,81 +118,59 @@ public class SshAgent implements Serializable {
 
             listener.getLogger().println("Loading SSH keys: " + keysToLoad);
 
-            // Collecter tous les fichiers de clés temporaires
-            List<String> allKeyFiles = new ArrayList<>();
-            String uuid = UUID.randomUUID().toString().substring(0, 8);
+            int keysAdded = 0;
+            
+            // Load each key directly via stdin - much more secure!
+            for (String credentialId : keysToLoad) {
+                SSHUserPrivateKey credential =
+                        CredentialsProvider.findCredentialById(credentialId, SSHUserPrivateKey.class, run);
 
-            try {
-                // Créer fichiers temporaires pour toutes les clés
-                for (String credentialId : keysToLoad) {
-                    SSHUserPrivateKey credential =
-                            CredentialsProvider.findCredentialById(credentialId, SSHUserPrivateKey.class, run);
+                if (credential == null) {
+                    listener.getLogger().println("Warning: SSH credential not found: " + credentialId);
+                    continue;
+                }
 
-                    if (credential == null) {
-                        listener.getLogger().println("Warning: SSH credential not found: " + credentialId);
+                List<String> privateKeys = credential.getPrivateKeys();
+                for (String privateKey : privateKeys) {
+                    if (privateKey == null || privateKey.trim().isEmpty()) {
                         continue;
                     }
 
-                    List<String> privateKeys = credential.getPrivateKeys();
-                    for (int i = 0; i < privateKeys.size(); i++) {
-                        String privateKey = privateKeys.get(i);
-                        if (privateKey == null || privateKey.trim().isEmpty()) {
-                            continue;
-                        }
-
-                        String tempKeyFile = String.format("/tmp/ssh-key-%s-%d-%s.tmp", credentialId, i, uuid);
-                        allKeyFiles.add(tempKeyFile);
-
-                        // Créer fichier avec permissions sécurisées
-                        List<String> createCmd = Arrays.asList(
-                                "/bin/sh",
-                                "-c",
-                                String.format("umask 077 && cat > %s && chmod 600 %s", tempKeyFile, tempKeyFile));
-
-                        ByteArrayInputStream keyInput = new ByteArrayInputStream(privateKey.getBytes());
-
-                        int createResult = launcher.launch()
-                                .cmds(createCmd)
-                                .stdin(keyInput) // ← Clé via stdin, pas visible dans les logs
-                                .quiet(true)
-                                .stdout(listener.getLogger())
-                                .stderr(listener.getLogger())
-                                .start()
-                                .joinWithTimeout(10, TimeUnit.SECONDS, listener);
-
-                        if (createResult != 0) {
-                            throw new RuntimeException("Failed to create key file");
-                        }
-                    }
-                }
-
-                // Ajouter toutes les clés en une fois avec timeout (1 heure)
-                if (!allKeyFiles.isEmpty()) {
-                    String keyFilesList =
-                            allKeyFiles.stream().map(f -> "'" + f + "'").collect(Collectors.joining(" "));
-
+                    // Add key directly via stdin with 1 hour timeout
                     List<String> addCmd = Arrays.asList(
-                            "/bin/sh",
-                            "-c",
-                            String.format("SSH_AUTH_SOCK='%s' ssh-add -t 3600 %s", socketPath, keyFilesList));
+                            "/bin/sh", "-c",
+                            String.format("SSH_AUTH_SOCK='%s' ssh-add -t 3600 -", socketPath)
+                    );
 
-                    int result = LaunchHelper.executeQuietly(launcher, addCmd, listener.getLogger(), 30, listener);
+                    ByteArrayInputStream keyInput = new ByteArrayInputStream(privateKey.getBytes());
+
+                    int result = launcher.launch()
+                            .cmds(addCmd)
+                            .stdin(keyInput)
+                            .quiet(true)
+                            .stdout(listener.getLogger())
+                            .stderr(listener.getLogger())
+                            .start()
+                            .joinWithTimeout(15, TimeUnit.SECONDS, listener);
+
                     if (result != 0) {
-                        throw new RuntimeException("Failed to add SSH keys to agent");
+                        throw new RuntimeException("Failed to add SSH key for credential: " + credentialId);
                     }
+                    
+                    keysAdded++;
                 }
+            }
 
-                // Update reference counts seulement si succès
+            if (keysAdded > 0) {
+                // Update reference counts only if successful
                 credentialIds.forEach(credId -> loadedKeys.merge(credId, 1, Integer::sum));
+                listener.getLogger().println(String.format("Added %d SSH keys. Agent has %d unique credentials", 
+                                                        keysAdded, loadedKeys.size()));
 
-                listener.getLogger().println("SSH keys loaded. Agent has " + loadedKeys.size() + " unique keys");
-
-            } finally {
-                // Cleanup tous les fichiers temporaires
-                for (String keyFile : allKeyFiles) {
-                    List<String> cleanupCmd = Arrays.asList("rm", "-f", keyFile);
-                    LaunchHelper.executeQuietlyDiscardOutput(launcher, cleanupCmd, 5, listener);
-                }
+                // Update expected state after adding keys
+                updateExpectedState(launcher, listener);
+            } else {
+                listener.getLogger().println("No keys were added");
             }
 
         } finally {
@@ -285,13 +253,48 @@ public class SshAgent implements Serializable {
 
             agentPid = null;
             socketPath = null;
-            socketDir = null;
             loadedKeys.clear();
+            expectedAgentOutput = "";
 
         } catch (Exception e) {
             listener.getLogger().println("Warning: Failed to stop SSH agent: " + e.getMessage());
         } finally {
             instanceLock.unlock();
+        }
+    }
+
+    public void updateExpectedState(Launcher launcher, TaskListener listener) {
+        try {
+            List<String> listCmd = Arrays.asList(
+                "/bin/sh", "-c", 
+                String.format("SSH_AUTH_SOCK='%s' ssh-add -l 2>/dev/null || echo 'no keys'", socketPath)
+            );
+            
+            this.expectedAgentOutput = LaunchHelper.executeAndCapture(launcher, listCmd, 5, listener);
+            listener.getLogger().println("Updated expected agent state: " + expectedAgentOutput);
+        } catch (Exception e) {
+            listener.getLogger().println("Failed to update expected state: " + e.getMessage());
+        }
+    }
+    
+    public boolean isSynced(Launcher launcher, TaskListener listener) {
+        try {
+            List<String> listCmd = Arrays.asList(
+                "/bin/sh", "-c", 
+                String.format("SSH_AUTH_SOCK='%s' ssh-add -l 2>/dev/null || echo 'no keys'", socketPath)
+            );
+            
+            String currentOutput = LaunchHelper.executeAndCapture(launcher, listCmd, 5, listener);
+            boolean synced = expectedAgentOutput.equals(currentOutput);
+            
+            if (!synced) {
+                listener.getLogger().println("Expected: " + expectedAgentOutput);
+                listener.getLogger().println("Actual: " + currentOutput);
+            }
+            
+            return synced;
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -323,5 +326,18 @@ public class SshAgent implements Serializable {
 
     public boolean hasKeys() {
         return !loadedKeys.isEmpty();
+    }
+
+    public void clearLoadedKeys() {
+        loadedKeys.clear();
+    }
+
+    public boolean hasKey(String credId) {
+        return loadedKeys.containsKey(credId);
+    }
+
+    /** Get the SSH agents directory for mounting */
+    public static String getSshAgentsDir() {
+        return SSH_AGENTS_DIR;
     }
 }

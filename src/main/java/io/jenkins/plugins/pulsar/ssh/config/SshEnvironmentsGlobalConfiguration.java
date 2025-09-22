@@ -2,7 +2,6 @@ package io.jenkins.plugins.pulsar.ssh.config;
 
 import hudson.Extension;
 import io.jenkins.plugins.pulsar.ssh.model.SshEnvironment;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;

@@ -6,25 +6,24 @@ jobs:
             name 'environment'
             description 'Select the target environment'
           }
-          ansibleProjectBranch {
-            name 'branch'
-            description 'Select branch'
+          ansibleProjectRef {
+            name 'ref'
+            description 'Select ansible project ref'
             projectId 'ansible'
           }
         }
         definition {
           cps {
             script('''
-              node('dev') {
-                ansibleProject(projectId: 'ansible', version: [ref: params.branch, type: 'branch'], cleanup: false) {
-                    ansiblePlaybook(
-                        user: 'ansible',
-                        playbook: 'playbooks/ping.yml',
-                        envName: params.environment
-                    )
-                }
+            node('dev') {
+              ansibleProject(projectId: 'ansible', ref: params.ref, cleanup: false) {
+                  ansiblePlaybook(
+                      user: 'ansible',
+                      playbook: 'playbooks/ping.yml',
+                      envName: params.environment
+                  )
               }
-            '''.stripIndent())
+            }'''.stripIndent())
             sandbox()
           }
         }

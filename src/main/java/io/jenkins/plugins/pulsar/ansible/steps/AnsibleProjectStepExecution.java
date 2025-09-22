@@ -3,21 +3,20 @@ package io.jenkins.plugins.pulsar.ansible.steps;
 import hudson.Launcher;
 import hudson.model.TaskListener;
 import java.util.List;
-import java.util.Map;
 import org.jenkinsci.plugins.workflow.steps.*;
 
 public class AnsibleProjectStepExecution extends SynchronousNonBlockingStepExecution<Void> {
     private static final long serialVersionUID = 1L;
 
     private final String projectId;
-    private final Map<String, String> version;
+    private final String ref;
     private final List<String> containerOptions;
     private final boolean cleanup;
 
     AnsibleProjectStepExecution(AnsibleProjectStep step, StepContext context) {
         super(context);
         this.projectId = step.getProjectId();
-        this.version = step.getVersion();
+        this.ref = step.getRef();
         this.containerOptions = step.getContainerOptions();
         this.cleanup = step.isCleanup();
     }
@@ -32,18 +31,18 @@ public class AnsibleProjectStepExecution extends SynchronousNonBlockingStepExecu
 
         try {
             // Create Ansible context
-            ansibleContext = AnsibleContext.getOrCreate(projectId, version, context, containerOptions);
+            ansibleContext = AnsibleContext.getOrCreate(projectId, ref, context, containerOptions);
 
             listener.getLogger().println("=== Ansible Project: " + projectId + " ===");
-            listener.getLogger().println("Version: " + version);
-            listener.getLogger().println("Project Root: " + ansibleContext.getProjectRoot());
+            listener.getLogger().println("Version: " + ref);
+            listener.getLogger().println("Project Root: " + ansibleContext.getProjectDir());
 
             // Execute the body synchronously
             context.newBodyInvoker()
                     .withContext(ansibleContext)
-                    .withContext(ansibleContext.getContainer())
+                    .withContext(ansibleContext.getExecEnv())
                     .start()
-                    .get(); // Synchronous execution
+                    .get();
 
             listener.getLogger().println("Ansible project execution completed successfully");
             return null;

@@ -8,7 +8,6 @@ import hudson.model.TaskListener;
 import hudson.util.Secret;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleVault;
 import io.jenkins.plugins.pulsar.container.service.ContainerManager;
-
 import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.util.*;
@@ -39,9 +38,7 @@ public class VaultManager implements Serializable {
             listener.getLogger().println("No vaults to setup");
             return;
         }
-
-        listener.getLogger().println("Setting up " + vaults.size() + " vault files");
-
+        
         // Create vault directory
         container.execute("mkdir -p " + vaultDir, launcher, listener);
 
@@ -87,7 +84,7 @@ public class VaultManager implements Serializable {
                             + vault.getId()
                             + (vault.getDescription() != null ? " (" + vault.getDescription() + ")" : ""));
         } else {
-            throw new Exception("Failed to create vault file: " + vault.getId() + " (exit code: " + result + ")");
+            throw new AbortException("Failed to create vault file: " + vault.getId() + " (exit code: " + result + ")");
         }
     }
 
@@ -122,7 +119,7 @@ public class VaultManager implements Serializable {
     }
 
     /** Get vault file paths for ansible-playbook command building */
-    public Map<String, String> getVaultFilePaths() {
+    public Map<String, String> getVaultFiles() {
         Map<String, String> vaultPaths = new HashMap<>();
         for (AnsibleVault vault : setupVaults.values()) {
             vaultPaths.put(vault.getId(), getVaultFilePath(vault));

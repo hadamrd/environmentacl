@@ -3,7 +3,6 @@ package io.jenkins.plugins.pulsar.environment.model;
 import hudson.Extension;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;

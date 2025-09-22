@@ -4,7 +4,6 @@ import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.ssh.model.SshEnvironment;
 import io.jenkins.plugins.pulsar.ssh.service.SshExecutor;
-
 import java.io.Serializable;
 
 public class SshContext implements Serializable {

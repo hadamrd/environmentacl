@@ -4,8 +4,8 @@ import hudson.model.Run;
 import io.jenkins.plugins.pulsar.environment.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.pulsar.environment.model.ACLRule;
 import io.jenkins.plugins.pulsar.environment.model.EnvironmentGroup;
-import io.jenkins.plugins.pulsar.environment.service.UserContextHelper.UserContext;
-
+import io.jenkins.plugins.pulsar.shared.UserContextHelper;
+import io.jenkins.plugins.pulsar.shared.UserContextHelper.UserContext;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -131,6 +131,38 @@ public final class EnvironmentACLChecker {
                 .filter(group ->
                         group.getEnvironments().stream().anyMatch(env -> hasAccess(userId, userGroups, jobName, env)))
                 .map(group -> group.getName())
+                .collect(Collectors.toList());
+    }
+
+    /** Get accessible environments filtered by environment group */
+    public static List<String> getAccessibleEnvironmentsByGroup(String jobName, String environmentGroup) {
+        UserContext context = UserContextHelper.getCurrentUserContext();
+        EnvironmentACLGlobalConfiguration config = EnvironmentACLGlobalConfiguration.get();
+        List<String> allEnvironments = config.getAllEnvironments();
+
+        return allEnvironments.stream()
+                .filter(env -> {
+                    // First check ACL access
+                    if (!hasAccess(context.getUserId(), context.getGroups(), jobName, env)) {
+                        return false;
+                    }
+
+                    // Then check environment group if specified
+                    if (environmentGroup == null || environmentGroup.trim().isEmpty() || "*".equals(environmentGroup)) {
+                        return true; // No group filter, include all ACL-accessible envs
+                    }
+
+                    EnvironmentGroup group = config.getEnvironmentGroupForEnvironment(env);
+                    return group != null && environmentGroup.equals(group.getName());
+                })
+                .collect(Collectors.toList());
+    }
+
+    /** Get all available environment group names */
+    public static List<String> getAllEnvironmentGroupNames() {
+        EnvironmentACLGlobalConfiguration config = EnvironmentACLGlobalConfiguration.get();
+        return config.getEnvironmentGroups().stream()
+                .map(EnvironmentGroup::getName)
                 .collect(Collectors.toList());
     }
 }

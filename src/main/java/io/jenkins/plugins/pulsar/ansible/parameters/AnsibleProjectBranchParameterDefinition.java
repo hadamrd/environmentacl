@@ -6,25 +6,22 @@ import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
 import io.jenkins.plugins.pulsar.ansible.AnsibleProjectsGlobalConfiguration;
 import io.jenkins.plugins.pulsar.ansible.model.AnsibleProject;
-import jenkins.model.Jenkins;
-import org.eclipse.jgit.lib.ObjectId;
-import org.jenkinsci.plugins.gitclient.Git;
-import org.jenkinsci.plugins.gitclient.GitClient;
-
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import net.sf.json.JSONObject;
+import org.eclipse.jgit.lib.ObjectId;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.gitclient.Git;
+import org.jenkinsci.plugins.gitclient.GitClient;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.StaplerRequest2;
-
 
 public class AnsibleProjectBranchParameterDefinition extends ParameterDefinition {
     private static final Logger LOGGER = Logger.getLogger(AnsibleProjectBranchParameterDefinition.class.getName());
 
-    private final String projectId;
+    private String projectId;
 
     @DataBoundConstructor
     public AnsibleProjectBranchParameterDefinition(String name, String description, String projectId) {
@@ -37,14 +34,19 @@ public class AnsibleProjectBranchParameterDefinition extends ParameterDefinition
         return projectId;
     }
 
+    @DataBoundSetter
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
+
     public List<String> getChoices() {
         try {
             LOGGER.info("Fetching branches for project: " + projectId);
-            
+
             // Get the ansible project
             AnsibleProjectsGlobalConfiguration config = AnsibleProjectsGlobalConfiguration.get();
             AnsibleProject project = config.getProjectById(projectId);
-            
+
             if (project == null) {
                 LOGGER.warning("Project not found: " + projectId);
                 return Arrays.asList("Project not found");
@@ -62,7 +64,7 @@ public class AnsibleProjectBranchParameterDefinition extends ParameterDefinition
             List<String> branches = new ArrayList<>();
             GitClient gitClient = Git.with(null, null).getClient();
             Map<String, ObjectId> refs = gitClient.getRemoteReferences(repoUrl, null, true, false);
-            
+
             for (String ref : refs.keySet()) {
                 if (ref.startsWith("refs/heads/")) {
                     branches.add(ref.substring("refs/heads/".length()));
@@ -92,7 +94,7 @@ public class AnsibleProjectBranchParameterDefinition extends ParameterDefinition
     }
 
     @Extension
-    @Symbol("ansibleProjectBranch")
+    @Symbol("ansibleProjectRef")
     public static class DescriptorImpl extends ParameterDefinition.ParameterDescriptor {
         @Override
         public String getDisplayName() {

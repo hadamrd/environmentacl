@@ -22,17 +22,6 @@
               </option>
             </j:forEach>
           </select>
-          
-          <!-- Show configuration info -->
-          <div style="margin-top: 8px; font-size: 12px; color: #666;">
-            <strong>Project:</strong> ${it.projectId}
-            <j:if test="${!empty(it.branchFilter)}">
-              | <strong>Filter:</strong> ${it.branchFilter}
-            </j:if>
-            <j:if test="${it.includeTags}">
-              | <strong>Includes tags</strong>
-            </j:if>
-          </div>
         </j:when>
         <j:otherwise>
           <!-- Error case: show disabled input with error message -->

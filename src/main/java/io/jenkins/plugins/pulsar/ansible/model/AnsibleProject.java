@@ -5,7 +5,6 @@ import hudson.model.Describable;
 import hudson.model.Descriptor;
 import io.jenkins.plugins.pulsar.environment.EnvironmentACLGlobalConfiguration;
 import io.jenkins.plugins.pulsar.environment.model.EnvironmentGroup;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;

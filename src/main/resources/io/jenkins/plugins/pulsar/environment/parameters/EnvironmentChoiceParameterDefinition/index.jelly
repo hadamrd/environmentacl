@@ -3,21 +3,23 @@
   <f:entry title="${it.name}" description="${it.description}">
     <div name="parameter">
       <input type="hidden" name="name" value="${it.name}" />
+      
+      <!-- Cache choices in a variable to avoid multiple calls -->
       <j:set var="choices" value="${it.choices}" />
-
+      
       <j:choose>
         <j:when test="${!choices.isEmpty()}">
-          <!-- Normal case: show choices -->
+          <!-- Simple environment dropdown -->
           <select name="value" class="jenkins-input">
-            <j:forEach var="choice" items="${choices}">
-              <option value="${choice}">
-                <j:out value="${choice}"/>
+            <j:forEach var="environment" items="${choices}">
+              <option value="${environment}">
+                <j:out value="${environment}"/>
               </option>
             </j:forEach>
           </select>
         </j:when>
         <j:otherwise>
-          <!-- Empty case: show disabled input with message -->
+          <!-- Empty case -->
           <select name="value" class="jenkins-input" disabled="true">
             <option value="">No environments accessible</option>
           </select>

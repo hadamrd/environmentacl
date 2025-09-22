@@ -3,7 +3,6 @@ package io.jenkins.plugins.pulsar.ssh.service;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.ssh.model.SshEnvironment;
-
 import java.io.PrintStream;
 import java.util.List;
 

@@ -1,5 +1,6 @@
 package io.jenkins.plugins.pulsar.ansible.service;
 
+import io.jenkins.plugins.pulsar.ansible.model.AnsibleVault;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,28 +17,15 @@ public class AnsiblePlaybookCommandBuilder {
     private String projectRoot;
     private Map<String, Object> extraVars;
     private String options;
-    private final List<VaultConfig> vaultConfigs = new ArrayList<>();
-
-    public static class VaultConfig {
-        private final String vaultId;
-        private final String passwordFile;
-
-        public VaultConfig(String vaultId, String passwordFile) {
-            this.vaultId = vaultId;
-            this.passwordFile = passwordFile;
-        }
-
-        public String getVaultId() {
-            return vaultId;
-        }
-
-        public String getPasswordFile() {
-            return passwordFile;
-        }
-    }
+    private VaultManager vaultManager;
 
     public AnsiblePlaybookCommandBuilder playbook(String playbook) {
         this.playbook = playbook;
+        return this;
+    }
+
+    public AnsiblePlaybookCommandBuilder vaultManager(VaultManager vaultManager) {
+        this.vaultManager = vaultManager;
         return this;
     }
 
@@ -66,13 +54,8 @@ public class AnsiblePlaybookCommandBuilder {
         return this;
     }
 
-    public AnsiblePlaybookCommandBuilder vault(String vaultId, String passwordFile) {
-        this.vaultConfigs.add(new VaultConfig(vaultId, passwordFile));
-        return this;
-    }
-
     /** Build the complete command including directory change */
-    public String buildFullCommand() {
+    public String buildCmd() {
         if (playbook == null) {
             throw new IllegalStateException("Playbook is required");
         }
@@ -111,9 +94,12 @@ public class AnsiblePlaybookCommandBuilder {
             cmd.add("-i '" + inventory + "'");
         }
 
-        // Vault IDs
-        for (VaultConfig vault : vaultConfigs) {
-            cmd.add("--vault-id " + vault.getVaultId() + "@" + vault.getPasswordFile());
+        // Vault IDs - handle internally
+        if (vaultManager != null && vaultManager.hasVaults()) {
+            for (AnsibleVault vault : vaultManager.getSetupVaults()) {
+                String passwordFile = vaultManager.getVaultFilePath(vault);
+                cmd.add("--vault-id " + vault.getId() + "@" + passwordFile);
+            }
         }
 
         // Standard extra vars
@@ -166,10 +152,6 @@ public class AnsiblePlaybookCommandBuilder {
 
         if (inventory != null) {
             summary.append(", Inventory: ").append(inventory);
-        }
-
-        if (!vaultConfigs.isEmpty()) {
-            summary.append(", Vaults: ").append(vaultConfigs.size());
         }
 
         if (extraVars != null && !extraVars.isEmpty()) {

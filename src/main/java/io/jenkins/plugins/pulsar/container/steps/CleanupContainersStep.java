@@ -5,7 +5,6 @@ import hudson.Launcher;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.container.service.ContainerCleaner;
 import io.jenkins.plugins.pulsar.container.service.ContainerManager;
-
 import java.io.Serializable;
 import java.util.Set;
 import org.jenkinsci.plugins.workflow.steps.Step;

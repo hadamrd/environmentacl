@@ -1,4 +1,4 @@
-package io.jenkins.plugins.pulsar.environment.step;
+package io.jenkins.plugins.pulsar.environment.steps;
 
 import hudson.Extension;
 import java.io.Serializable;

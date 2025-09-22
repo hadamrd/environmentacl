@@ -7,7 +7,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.container.service.ContainerManager;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;

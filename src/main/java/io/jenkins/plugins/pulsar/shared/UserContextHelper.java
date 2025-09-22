@@ -1,4 +1,4 @@
-package io.jenkins.plugins.pulsar.environment.service;
+package io.jenkins.plugins.pulsar.shared;
 
 import hudson.model.Cause;
 import hudson.model.Run;

@@ -1,10 +1,9 @@
-package io.jenkins.plugins.pulsar.environment.step;
-
-import java.io.Serializable;
-import java.util.List;
+package io.jenkins.plugins.pulsar.environment.steps;
 
 import io.jenkins.plugins.pulsar.environment.model.EnvironmentGroup;
 import io.jenkins.plugins.pulsar.environment.service.CredentialService;
+import java.io.Serializable;
+import java.util.List;
 
 public class EnvironmentAccessContext implements Serializable {
     private final String environment;

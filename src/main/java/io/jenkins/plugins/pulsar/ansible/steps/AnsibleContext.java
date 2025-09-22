@@ -13,7 +13,7 @@ import io.jenkins.plugins.pulsar.container.service.ContainerManager;
 import io.jenkins.plugins.pulsar.container.steps.SharedContainerStep;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
 import io.jenkins.plugins.pulsar.ssh.service.SshAgent;
-
+import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,17 +30,16 @@ public class AnsibleContext implements Serializable {
     private static final Map<String, AnsibleContext> activeContexts = new ConcurrentHashMap<>();
 
     private final String projectId;
-    private final Map<String, String> version;
+    private final String ref;
     private final AnsibleProject project;
-    private final String projectRoot;
+    private final String projectDir;
     private final String nodeName;
     private final String contextKey;
 
     // Managed resources
-    private ContainerManager container;
+    private ContainerManager execEnv;
     private SshAgent sshAgent;
     private VaultManager vaultManager;
-    private List<String> loadedSshCredentialIds;
 
     // Lifecycle management
     private int referenceCount = 1;
@@ -50,27 +49,25 @@ public class AnsibleContext implements Serializable {
     // Services
     private final transient AnsibleEnvironmentService envService;
 
-    private AnsibleContext(String projectId, Map<String, String> version, AnsibleProject project, String nodeName) {
+    private AnsibleContext(
+            String projectId,
+            String ref,
+            AnsibleProject project,
+            String nodeName,
+            String contextKey,
+            String execEnvProjectRoot) {
         this.projectId = projectId;
-        this.version = version;
+        this.ref = ref;
         this.project = project;
         this.nodeName = nodeName;
         this.envService = new AnsibleEnvironmentService();
-        this.loadedSshCredentialIds = new ArrayList<>();
-
-        // Calculate project root
-        String sanitizedVersion = version.get("ref").replaceAll("[^a-zA-Z0-9\\-\\.]", "_");
-        String sanitizedType = version.get("type").replaceAll("[^a-zA-Z0-9\\-]", "_");
-        this.projectRoot = "/ansible/projects/" + projectId + "/" + sanitizedType + "/" + sanitizedVersion;
-
-        // Create cache key
-        this.contextKey = nodeName + ":" + projectId + ":" + version.get("ref") + ":" + version.get("type");
+        this.projectDir = execEnvProjectRoot;
+        this.contextKey = contextKey;
     }
 
     /** Get or create cached AnsibleContext - similar to ContainerManager.getOrCreate */
     public static AnsibleContext getOrCreate(
-            String projectId, Map<String, String> version, StepContext stepContext, List<String> containerOptions)
-            throws Exception {
+            String projectId, String ref, StepContext stepContext, List<String> containerOptions) throws Exception {
 
         TaskListener listener = stepContext.get(TaskListener.class);
         Launcher launcher = stepContext.get(Launcher.class);
@@ -83,13 +80,13 @@ public class AnsibleContext implements Serializable {
             throw new IllegalArgumentException("Ansible project not found: " + projectId);
         }
 
-        if (version == null || version.get("ref") == null || version.get("type") == null) {
-            throw new IllegalArgumentException("Version information required (ref and type)");
+        if (ref == null) {
+            throw new IllegalArgumentException("Version information required");
         }
 
         // Get node name
         String nodeName = LaunchHelper.getNodeName(stepContext);
-        String contextKey = nodeName + ":" + projectId + ":" + version.get("ref") + ":" + version.get("type");
+        String contextKey = String.format("%s:%s:%s", nodeName, projectId, ref);
 
         synchronized (AnsibleContext.class) {
             AnsibleContext existing = activeContexts.get(contextKey);
@@ -101,7 +98,10 @@ public class AnsibleContext implements Serializable {
 
             // Create new context
             listener.getLogger().println("Creating new Ansible context for: " + projectId);
-            AnsibleContext context = new AnsibleContext(projectId, version, project, nodeName);
+            String sRef = ref.replaceAll("[^a-zA-Z0-9\\-\\.]", "_");
+            String projectDir = String.format("/%s/%s", projectId, sRef);
+            AnsibleContext context = new AnsibleContext(
+                    projectId, ref, project, nodeName, contextKey, projectDir);
 
             // Initialize everything
             context.initialize(stepContext, containerOptions, launcher, listener);
@@ -126,55 +126,86 @@ public class AnsibleContext implements Serializable {
         this.sshAgent.start(launcher, listener);
 
         // 2. Create container with SSH socket mount
-        this.container = createContainerWithSshMount(containerOptions, launcher, listener);
+        this.execEnv = spinExecEnv(stepContext, containerOptions, launcher, listener);
 
         // 3. Initialize vault manager
-        this.vaultManager = new VaultManager(container);
+        this.vaultManager = new VaultManager(execEnv);
 
         // 4. Setup project
-        setupProject(launcher, listener);
+        setup(stepContext, launcher, listener);
 
         initialized = true;
         listener.getLogger().println("Ansible environment ready");
     }
 
     /** Create or get shared container */
-    private ContainerManager createContainerWithSshMount(
-            List<String> containerOptions, Launcher launcher, TaskListener listener) throws Exception {
-        // 2. Prepare container options with SSH socket mount
-        List<String> finalContainerOptions = new ArrayList<>();
+    private ContainerManager spinExecEnv(StepContext stepContext, List<String> containerOptions, 
+                                    Launcher launcher, TaskListener listener) throws Exception {
+        List<String> finalOpts = new ArrayList<>();
         if (containerOptions != null) {
-            finalContainerOptions.addAll(containerOptions);
+            finalOpts.addAll(containerOptions);
         }
 
-        String socketPath = sshAgent.getSocketPath();
-        finalContainerOptions.add("-v " + socketPath + ":" + socketPath);
+        // Mount the entire SSH agents directory instead of individual sockets
+        String sshAgentsDir = SshAgent.getSshAgentsDir();
+        finalOpts.add(String.format("-v %s:%s", sshAgentsDir, sshAgentsDir));
 
-        SharedContainerStep containerStep = createContainerStep(finalContainerOptions);
-
+        SharedContainerStep containerStep = createContainerStep(finalOpts);
         var container = ContainerManager.getOrCreate(nodeName, project.getExecEnv(), containerStep, launcher, listener);
-        container.setEnv("SSH_AUTH_SOCK", socketPath);
+        
+        // Set SSH_AUTH_SOCK after agent is started
+        if (sshAgent != null && sshAgent.getSocketPath() != null) {
+            container.setEnv("SSH_AUTH_SOCK", sshAgent.getSocketPath());
+        }
 
         return container;
+    }
+
+    /** Ensure SSH agent is running, restart if needed */
+    private void ensureSshAgentRunning(Launcher launcher, TaskListener listener) throws Exception {
+        if (sshAgent == null) {
+            listener.getLogger().println("No SSH agent instance, creating new one...");
+            this.sshAgent = SshAgent.getInstance(nodeName);
+        }
+        
+        if (!sshAgent.isRunning(launcher, listener)) {
+            listener.getLogger().println("SSH agent not running, restarting...");
+
+            // Clean up stale socket BEFORE restarting
+            String oldSocketPath = sshAgent.getSocketPath();
+            if (oldSocketPath != null) {
+                List<String> cleanupCmd = Arrays.asList("rm", "-f", oldSocketPath);
+                LaunchHelper.executeQuietlyDiscardOutput(launcher, cleanupCmd, 5, listener);
+                listener.getLogger().println("Cleaned up stale socket: " + oldSocketPath);
+            }
+
+            sshAgent.start(launcher, listener);
+
+            execEnv.setEnv("SSH_AUTH_SOCK", sshAgent.getSocketPath());
+            listener.getLogger().println("Updated container SSH_AUTH_SOCK to: " + sshAgent.getSocketPath());
+        } else {
+            if (!sshAgent.isSynced(launcher, listener)) {
+                sshAgent.clearLoadedKeys();
+            }
+        }
     }
 
     /** Setup SSH agent with all required keys */
     public void setupEnvSshKeys(Run<?, ?> run, Launcher launcher, TaskListener listener, String envName)
             throws Exception {
         listener.getLogger().println("Setting up SSH agent...");
-        String envSshCredentialId = envService.getSshCredentialForEnvironment(projectId, envName);
+
+        String envSshCredentialId = envService.getEnvSshCred(projectId, envName);
         if (envSshCredentialId == null) {
             listener.getLogger().println("No SSH keys configured for environment: " + envName);
             return;
         }
 
-        if (loadedSshCredentialIds == null) {
-            loadedSshCredentialIds = new ArrayList<>();
-        }
+        // ENSURE SSH agent is actually running before loading keys
+        ensureSshAgentRunning(launcher, listener);
 
-        if (!loadedSshCredentialIds.contains(envSshCredentialId)) {
+        if (!sshAgent.hasKey(envSshCredentialId)) {
             sshAgent.loadKeys(Arrays.asList(envSshCredentialId), run, launcher, listener);
-            loadedSshCredentialIds.add(envSshCredentialId);
         }
     }
 
@@ -187,11 +218,8 @@ public class AnsibleContext implements Serializable {
     }
 
     /** Setup project files (checkout, ansible.cfg) */
-    private void setupProject(Launcher launcher, TaskListener listener) throws Exception {
+    private void setup(StepContext stepContext, Launcher launcher, TaskListener listener) throws Exception {
         listener.getLogger().println("Setting up project files...");
-
-        // Create project directory
-        container.execute("mkdir -p " + projectRoot, launcher, listener);
 
         // Checkout project
         checkoutProject(launcher, listener);
@@ -200,24 +228,50 @@ public class AnsibleContext implements Serializable {
         setupAnsibleConfig(launcher, listener);
     }
 
-    /** Checkout project from repository */
+    /** Checkout project from repository - supports branches and tags with shallow cloning */
     private void checkoutProject(Launcher launcher, TaskListener listener) throws Exception {
-        // Simple git clone - in real implementation you'd integrate with your RepoCacheManager
-        String checkoutCmd = String.format(
-                "cd %s && git clone %s . || (git fetch && git reset --hard origin/%s)",
-                projectRoot, project.getRepository(), version.get("ref"));
-
-        container.execute(checkoutCmd, launcher, listener);
-        listener.getLogger().println("Project checked out: " + project.getRepository() + "@" + version.get("ref"));
+        execEnv.execute("mkdir -p " + projectDir, launcher, listener);
+        
+        // Try shallow clone first (works for most branches and tags)
+        String shallowCmd = String.format(
+            "cd %s && git clone --depth 1 --branch %s %s .",
+            projectDir, ref, project.getRepository()
+        );
+        
+        int result = execEnv.execute(shallowCmd, launcher, listener);
+        
+        if (result != 0) {
+            // Fallback to full clone + checkout (for older tags or edge cases)
+            listener.getLogger().println("Shallow clone failed, trying full clone...");
+            
+            String fullCmd = String.format(
+                "cd %s && rm -rf * .git 2>/dev/null || true && git clone %s . && git checkout %s",
+                projectDir, project.getRepository(), ref
+            );
+            
+            result = execEnv.execute(fullCmd, launcher, listener);
+            
+            if (result != 0) {
+                throw new Exception("Failed to checkout: " + project.getRepository() + "@" + ref);
+            }
+        }
+        
+        listener.getLogger().println("Project checked out: " + project.getRepository() + "@" + ref);
     }
 
     /** Setup ansible.cfg file */
     private void setupAnsibleConfig(Launcher launcher, TaskListener listener) throws Exception {
-        String ansibleConfig = project.getAnsibleConfig();
+        String secureWriteCmd = String.format("cat > %s/ansible.cfg", projectDir);
 
-        String configCmd = String.format("cat > %s/ansible.cfg << 'EOF'\n%s\nEOF", projectRoot, ansibleConfig);
+        ByteArrayInputStream configInput =
+                new ByteArrayInputStream(project.getAnsibleConfig().getBytes());
 
-        container.execute(configCmd, launcher, listener);
+        int result = execEnv.execute(secureWriteCmd, null, null, configInput, launcher, listener);
+
+        if (result != 0) {
+            throw new Exception("Failed to write ansible.cfg file");
+        }
+
         listener.getLogger().println("ansible.cfg configured");
     }
 
@@ -241,25 +295,20 @@ public class AnsibleContext implements Serializable {
         // Use command builder for clean separation of concerns
         AnsiblePlaybookCommandBuilder builder = new AnsiblePlaybookCommandBuilder()
                 .playbook(playbook)
-                .user(user != null ? user : "root")
+                .user(user != null ? user : "ansible")
+                .vaultManager(vaultManager)
                 .inventory(getInventoryPath(envName))
-                .projectRoot(projectRoot)
+                .projectRoot(projectDir)
                 .extraVars(extraVars)
                 .options(options);
-
-        // Add vault configurations from VaultManager
-        Map<String, String> vaultPaths = vaultManager.getVaultFilePaths();
-        for (Map.Entry<String, String> vault : vaultPaths.entrySet()) {
-            builder.vault(vault.getKey(), vault.getValue());
-        }
 
         // Log command summary
         listener.getLogger().println("=== Executing Ansible Playbook ===");
         listener.getLogger().println(builder.getSummary());
 
         // Build and execute command
-        String fullCmd = builder.buildFullCommand();
-        return container.execute(fullCmd, "root", launcher, listener);
+        String fullCmd = builder.buildCmd();
+        return execEnv.execute(fullCmd, "root", launcher, listener);
     }
 
     /** Execute a command in the project environment */
@@ -270,12 +319,12 @@ public class AnsibleContext implements Serializable {
             throw new IllegalStateException("AnsibleContext has been killed");
         }
 
-        String fullCmd = "cd " + projectRoot + " && " + command;
+        String fullCmd = "cd " + projectDir + " && " + command;
         if (sshAgent != null && sshAgent.getSocketPath() != null) {
             fullCmd = "export SSH_AUTH_SOCK=" + sshAgent.getSocketPath() + " && " + fullCmd;
         }
 
-        return container.execute(fullCmd, "root", launcher, listener);
+        return execEnv.execute(fullCmd, "root", launcher, listener);
     }
 
     /** Release reference - similar to ContainerManager.release */
@@ -305,8 +354,8 @@ public class AnsibleContext implements Serializable {
             }
 
             // 3. Release container (this will call ContainerManager.release)
-            if (container != null) {
-                container.release(true, launcher, listener); // cleanup=true
+            if (execEnv != null) {
+                execEnv.release(true, launcher, listener); // cleanup=true
             }
 
             listener.getLogger().println("Ansible context cleaned up: " + projectId);
@@ -321,7 +370,7 @@ public class AnsibleContext implements Serializable {
 
     /** Check if context is still valid */
     private boolean isValid(Launcher launcher, TaskListener listener) {
-        return !isKilled && container != null && container.isRunning(launcher, listener);
+        return !isKilled && execEnv != null && execEnv.isRunning(launcher, listener);
     }
 
     /** Ensure context is initialized */
@@ -369,24 +418,24 @@ public class AnsibleContext implements Serializable {
         return projectId;
     }
 
-    public Map<String, String> getVersion() {
-        return version;
+    public String getRef() {
+        return ref;
     }
 
     public AnsibleProject getProject() {
         return project;
     }
 
-    public String getProjectRoot() {
-        return projectRoot;
+    public String getProjectDir() {
+        return projectDir;
     }
 
     public String getNodeName() {
         return nodeName;
     }
 
-    public ContainerManager getContainer() {
-        return container;
+    public ContainerManager getExecEnv() {
+        return execEnv;
     }
 
     public SshAgent getSshAgent() {

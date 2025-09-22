@@ -6,7 +6,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
 import io.jenkins.plugins.pulsar.ssh.service.SshAgent;
-
 import java.io.Serializable;
 import java.util.List;
 import java.util.Set;

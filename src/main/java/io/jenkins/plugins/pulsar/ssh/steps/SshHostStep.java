@@ -8,7 +8,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.ssh.config.SshEnvironmentsGlobalConfiguration;
 import io.jenkins.plugins.pulsar.ssh.model.SshEnvironment;
-
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.Set;

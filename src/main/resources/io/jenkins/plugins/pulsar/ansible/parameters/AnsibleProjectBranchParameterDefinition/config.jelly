@@ -6,7 +6,7 @@
   <f:entry title="${%Description}" field="description">
     <f:textarea />
   </f:entry>
-  <f:entry title="${%Environment Group}" field="environmentGroup" description="Optional: Filter environments by group. Leave empty to show all accessible environments.">
+  <f:entry title="${%ProjectId}" field="projectId" >
     <f:textbox />
   </f:entry>
 </j:jelly>

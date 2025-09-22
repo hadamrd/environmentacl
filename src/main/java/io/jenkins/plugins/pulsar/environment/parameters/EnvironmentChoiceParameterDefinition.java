@@ -1,60 +1,57 @@
 package io.jenkins.plugins.pulsar.environment.parameters;
 
 import hudson.Extension;
-import hudson.model.Job;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
-import hudson.model.TopLevelItem;
 import io.jenkins.plugins.pulsar.environment.service.EnvironmentACLChecker;
-
+import io.jenkins.plugins.pulsar.shared.RequestContextHelper;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.StaplerRequest2;
 
 public class EnvironmentChoiceParameterDefinition extends ParameterDefinition {
     private static final Logger LOGGER = Logger.getLogger(EnvironmentChoiceParameterDefinition.class.getName());
 
+    private String environmentGroup;
+
     @DataBoundConstructor
-    public EnvironmentChoiceParameterDefinition(String name, String description) {
+    public EnvironmentChoiceParameterDefinition(String name, String description, String environmentGroup) {
         super(name);
         setDescription(description);
+        this.environmentGroup = environmentGroup;
     }
 
-    private String getCurrentJobName() {
-        try {
-            StaplerRequest2 req = Stapler.getCurrentRequest2();
-            if (req != null) {
-                // Try to find a Job ancestor in the request
-                Object ancestor = req.findAncestorObject(Job.class);
-                if (ancestor instanceof Job) {
-                    Job<?, ?> job = (Job<?, ?>) ancestor;
-                    return job.getFullName();
-                }
-                
-                // Try to find TopLevelItem
-                ancestor = req.findAncestorObject(TopLevelItem.class);
-                if (ancestor instanceof Job) {
-                    Job<?, ?> job = (Job<?, ?>) ancestor;
-                    return job.getFullName();
-                }
-            }
-            return "*";
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Error getting current job name: " + e.getMessage(), e);
-            return "*";
-        }
+    public EnvironmentChoiceParameterDefinition(String name, String description) {
+        this(name, description, null);
+    }
+
+    public String getEnvironmentGroup() {
+        return environmentGroup;
+    }
+
+    @DataBoundSetter
+    public void setEnvironmentGroup(String environmentGroup) {
+        this.environmentGroup = environmentGroup;
     }
 
     public List<String> getChoices() {
-        String jobFullName = getCurrentJobName();
+        String jobFullName = RequestContextHelper.getCurrentJobName();
         try {
-            return EnvironmentACLChecker.getAccessibleEnvironments(jobFullName);
+            if (environmentGroup == null || environmentGroup.trim().isEmpty()) {
+                // Default behavior - show all accessible environments
+                LOGGER.info("Getting all accessible environments for job: " + jobFullName);
+                return EnvironmentACLChecker.getAccessibleEnvironments(jobFullName);
+            } else {
+                // Filtered behavior - show only environments in the specified group
+                LOGGER.info("Getting accessible environments for job: " + jobFullName + ", group: " + environmentGroup);
+                return EnvironmentACLChecker.getAccessibleEnvironmentsByGroup(jobFullName, environmentGroup);
+            }
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error loading environments for parameter ''{0}'': {1}", new Object[] {
                 getName(), e.getMessage()
