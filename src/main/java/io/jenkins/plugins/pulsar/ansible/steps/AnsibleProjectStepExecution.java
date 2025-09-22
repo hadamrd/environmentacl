@@ -44,7 +44,6 @@ public class AnsibleProjectStepExecution extends SynchronousNonBlockingStepExecu
                     .start()
                     .get();
 
-            listener.getLogger().println("Ansible project execution completed successfully");
             return null;
 
         } finally {

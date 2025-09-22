@@ -4,6 +4,8 @@ import hudson.Launcher;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.container.steps.SharedContainerStep;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
@@ -29,7 +31,7 @@ public class ContainerManager implements Serializable {
     private final String nodeName;
     private final String image;
     private final String containerId;
-    private int referenceCount = 1;
+    private int referenceCount = 0;
     private volatile boolean isKilled = false;
 
     // Environment variables for this container instance
@@ -226,7 +228,7 @@ public class ContainerManager implements Serializable {
             referenceCount--;
 
             if (referenceCount <= 0 && cleanup) {
-                listener.getLogger().println("Removing shared container: " + getShortId());
+                listener.getLogger().println("Removing container: " + getShortId());
                 kill(launcher, listener);
                 activeContainers.remove(nodeName + ":" + image);
             } else if (referenceCount <= 0) {
@@ -284,6 +286,16 @@ public class ContainerManager implements Serializable {
                 }
             }
             activeContainers.clear();
+        }
+    }
+
+    public static void adoptContainer(String nodeName, String image, String containerId) {
+        String containerKey = nodeName + ":" + image;
+        synchronized (ContainerManager.class) {
+            if (!activeContainers.containsKey(containerKey)) {
+                ContainerManager manager = new ContainerManager(nodeName, image, containerId);
+                activeContainers.put(containerKey, manager);
+            }
         }
     }
 

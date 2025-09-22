@@ -13,3 +13,20 @@ unclassified:
         vaults:
           - id: "prod"
             credentialId: "prod-ansible-key"
+  environmentACL:
+    aclRules:
+      - name: "sre-dev-release-access"
+        type: "allow"
+        priority: 300
+        jobs: ["*"]
+        environmentGroups: ["production"]
+        users: ["sre"]
+    environmentGroups:
+      - name: "production"
+        description: "Production environments"
+        sshCredentialId: "prod-ssh-key"
+        environments:
+          - "prod-eu"
+        tags:
+          - "production"
+          - "critical"

@@ -294,6 +294,27 @@ public class SshAgent implements Serializable {
         }
     }
 
+    public static void adoptOrphanedAgent(String nodeName, String socketPath, String pid) {
+        globalLock.lock();
+        try {
+            SshAgent agent = instances.get(nodeName);
+            if (agent == null) {
+                // Create new agent instance
+                agent = new SshAgent(nodeName);
+                instances.put(nodeName, agent);
+            }
+            
+            // Set the discovered socket and PID
+            agent.socketPath = socketPath;
+            agent.agentPid = pid;
+            // Clear loaded keys since we don't know what was loaded
+            agent.loadedKeys.clear();
+            
+        } finally {
+            globalLock.unlock();
+        }
+    }
+
     /** Cleanup all agents */
     public static void cleanupAll(Launcher launcher, TaskListener listener) {
         globalLock.lock();

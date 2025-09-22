@@ -222,7 +222,7 @@
         <configuration>
           <compatibleSinceVersion>${jenkins.version}</compatibleSinceVersion>
           <systemProperties>
-            <hudson.Main.development>true</hudson.Main.development>
+            <!-- <hudson.Main.development>true</hudson.Main.development> -->
             <casc.jenkins.config>${project.basedir}/src/test/resources/jenkins-config</casc.jenkins.config>
             <io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>5000</io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>
             <jenkins.install.runSetupWizard>false</jenkins.install.runSetupWizard>

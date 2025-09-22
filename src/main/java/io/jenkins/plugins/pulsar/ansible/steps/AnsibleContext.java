@@ -97,7 +97,6 @@ public class AnsibleContext implements Serializable {
             }
 
             // Create new context
-            listener.getLogger().println("Creating new Ansible context for: " + projectId);
             String sRef = ref.replaceAll("[^a-zA-Z0-9\\-\\.]", "_");
             String projectDir = String.format("/%s/%s", projectId, sRef);
             AnsibleContext context = new AnsibleContext(
@@ -193,7 +192,6 @@ public class AnsibleContext implements Serializable {
     /** Setup SSH agent with all required keys */
     public void setupEnvSshKeys(Run<?, ?> run, Launcher launcher, TaskListener listener, String envName)
             throws Exception {
-        listener.getLogger().println("Setting up SSH agent...");
 
         String envSshCredentialId = envService.getEnvSshCred(projectId, envName);
         if (envSshCredentialId == null) {
@@ -228,32 +226,18 @@ public class AnsibleContext implements Serializable {
         setupAnsibleConfig(launcher, listener);
     }
 
-    /** Checkout project from repository - supports branches and tags with shallow cloning */
+    /** Checkout project from repository */
     private void checkoutProject(Launcher launcher, TaskListener listener) throws Exception {
-        execEnv.execute("mkdir -p " + projectDir, launcher, listener);
-        
-        // Try shallow clone first (works for most branches and tags)
-        String shallowCmd = String.format(
-            "cd %s && git clone --depth 1 --branch %s %s .",
-            projectDir, ref, project.getRepository()
+        // One command: try to reuse existing repo, otherwise clone fresh
+        String cmd = String.format(
+            "(cd %s && git remote get-url origin 2>/dev/null | grep -q '%s' && git fetch && git reset --hard %s) || " +
+            "(rm -rf %s && git clone %s %s && cd %s && git checkout %s)",
+            projectDir, project.getRepository(), ref,
+            projectDir, project.getRepository(), projectDir, projectDir, ref
         );
         
-        int result = execEnv.execute(shallowCmd, launcher, listener);
-        
-        if (result != 0) {
-            // Fallback to full clone + checkout (for older tags or edge cases)
-            listener.getLogger().println("Shallow clone failed, trying full clone...");
-            
-            String fullCmd = String.format(
-                "cd %s && rm -rf * .git 2>/dev/null || true && git clone %s . && git checkout %s",
-                projectDir, project.getRepository(), ref
-            );
-            
-            result = execEnv.execute(fullCmd, launcher, listener);
-            
-            if (result != 0) {
-                throw new Exception("Failed to checkout: " + project.getRepository() + "@" + ref);
-            }
+        if (execEnv.execute(cmd, launcher, listener) != 0) {
+            throw new Exception("Failed to checkout: " + project.getRepository() + "@" + ref);
         }
         
         listener.getLogger().println("Project checked out: " + project.getRepository() + "@" + ref);
@@ -330,12 +314,11 @@ public class AnsibleContext implements Serializable {
     /** Release reference - similar to ContainerManager.release */
     public void release(boolean cleanup, Launcher launcher, TaskListener listener) {
         synchronized (AnsibleContext.class) {
-            listener.getLogger().println("Ansible context reference count: " + referenceCount);
             referenceCount--;
 
             if (referenceCount <= 0 && cleanup) {
-                listener.getLogger().println("Cleaning up Ansible context: " + projectId);
-                kill(launcher, listener);
+                listener.getLogger().println("Cleaning up Ansible project: " + projectId);
+                deleteContext(launcher, listener);
                 activeContexts.remove(contextKey);
             } else if (referenceCount <= 0) {
                 listener.getLogger().println("Keeping Ansible context alive: " + projectId);
@@ -344,7 +327,7 @@ public class AnsibleContext implements Serializable {
     }
 
     /** Full cleanup */
-    private void kill(Launcher launcher, TaskListener listener) {
+    private void deleteContext(Launcher launcher, TaskListener listener) {
         if (isKilled) return;
 
         try {
@@ -356,6 +339,8 @@ public class AnsibleContext implements Serializable {
             // 3. Release container (this will call ContainerManager.release)
             if (execEnv != null) {
                 execEnv.release(true, launcher, listener); // cleanup=true
+            } else {
+                listener.getLogger().println("Exec environment not found when cleaning up context!");
             }
 
             listener.getLogger().println("Ansible context cleaned up: " + projectId);
@@ -403,7 +388,7 @@ public class AnsibleContext implements Serializable {
 
             for (AnsibleContext context : contexts) {
                 try {
-                    context.kill(launcher, listener);
+                    context.deleteContext(launcher, listener);
                 } catch (Exception e) {
                     listener.getLogger()
                             .println("Warning: Failed to cleanup context " + context.projectId + ": " + e.getMessage());

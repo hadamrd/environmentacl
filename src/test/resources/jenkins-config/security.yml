@@ -17,12 +17,3 @@ jenkins:
             permissions:
               - "Overall/Administer"
 
-unclassified:
-  environmentACL:
-    aclRules:
-      - name: "sre-dev-release-access"
-        type: "allow"
-        priority: 300
-        jobs: ["*"]
-        environmentGroups: ["production"]
-        users: ["sre"]
