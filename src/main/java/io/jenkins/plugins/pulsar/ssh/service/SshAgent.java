@@ -63,8 +63,6 @@ public class SshAgent implements Serializable {
             String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
             this.socketPath = String.format("%s/agent-%s-%s.sock", SSH_AGENTS_DIR, nodeName, uuid);
             
-            listener.getLogger().println("Starting SSH agent: " + socketPath);
-
             // Create directory and start agent
             List<String> startCmd = Arrays.asList(
                 "/bin/sh", "-c",
@@ -204,7 +202,6 @@ public class SshAgent implements Serializable {
     /** Check if SSH agent is running */
     public boolean isRunning(Launcher launcher, TaskListener listener) {
         if (agentPid == null || socketPath == null) {
-            listener.getLogger().println("No agent pid or socket path found!");
             return false;
         }
 
@@ -271,7 +268,6 @@ public class SshAgent implements Serializable {
             );
             
             this.expectedAgentOutput = LaunchHelper.executeAndCapture(launcher, listCmd, 5, listener);
-            listener.getLogger().println("Updated expected agent state: " + expectedAgentOutput);
         } catch (Exception e) {
             listener.getLogger().println("Failed to update expected state: " + e.getMessage());
         }
