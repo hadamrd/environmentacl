@@ -1,202 +1,244 @@
-# Environment ACL Manager Plugin
+# Jenkins Pulsar Ansible Plugin
 
-Jenkins plugin for environment-based access control with fine-grained permissions management.
+A Jenkins plugin that provides configuration-driven Ansible automation with isolated, volatile execution environments. This plugin enables teams to run Ansible playbooks within containerized environments while maintaining security through ACL-based access controls.
 
 ## Features
 
-- **Environment Choice Parameter** - Dynamic dropdown showing only accessible environments
-- **Pipeline Access Control** - `checkEnvironmentACL()` step for runtime permission checks
-- **Flexible Rules** - User/group-based access with regex job patterns and environment tags
-- **Credential Integration** - Automatic SSH and Vault credential mapping per environment
-- **JCasC Support** - Full Configuration as Code integration
-- **Management UI** - View current configuration and rules
+- **Isolated Execution Environments**: Each Ansible execution runs in a dedicated Docker container with managed SSH agents
+- **Configuration-Driven Pipelines**: Define Ansible jobs using simple configuration syntax
+- **Environment Access Control**: ACL-based restrictions on environment access per user/team
+- **Project Reference Management**: Version-controlled Ansible project references with dynamic selection
+- **Persistent vs Volatile Modes**: Choose between container cleanup or reuse for performance optimization
+- **Automated Resource Management**: Automatic discovery and cleanup of orphaned containers and SSH agents
 
-## Quick Setup
+## Architecture
 
-### 1. Install Plugin
-Install from Jenkins Plugin Manager or build from source.
+The plugin manages two key components:
 
-### 2. Configure via JCasC
+1. **Container Manager**: Handles shared Docker containers for Ansible execution
+2. **SSH Agent Manager**: Manages SSH key distribution and agent lifecycle
 
-```yaml
-unclassified:
-  environmentACL:
-    environmentGroups:
-      - name: "development"
-        environments: ["dev1", "dev2", "staging"]
-        tags: ["development", "testing"]
-        sshCredentialId: "dev-ssh-key"
-        vaultCredentials:
-          - vaultId: "dev-vault"
-            credentialId: "dev-vault-token"
-      
-      - name: "production"
-        environments: ["prod1", "prod2"]
-        tags: ["production", "critical"]
-        sshCredentialId: "prod-ssh-key"
-    
-    aclRules:
-      - name: "developers-access"
-        type: "allow"
-        priority: 200
-        jobs: ["build-.*", "test-.*"]
-        environmentGroups: ["development"]
-        users: ["developer1", "developer2"]
-        
-      - name: "sre-access"
-        type: "allow"
-        priority: 300
-        jobs: ["deploy-.*", "release-.*"]
-        environments: ["*"]
-        users: ["sre-team"]
-```
+Both components support automatic discovery on Jenkins startup to adopt orphaned resources back into memory management.
 
-### 3. View Configuration
-Navigate to **Manage Jenkins** → **Environment ACL Manager** to view loaded configuration.
+## Installation
 
-## Usage
+1. Install the plugin through Jenkins Plugin Manager
+2. Ensure Docker is available on Jenkins agents
+3. Configure appropriate permissions for Jenkins to manage Docker containers
 
-### Environment Choice Parameter
+## Configuration
 
-Add to your job/pipeline:
+### Basic Pipeline Job
 
 ```groovy
-pipeline {
-    agent any
-    parameters {
-        environmentChoice(
-            name: 'TARGET_ENV',
-            description: 'Select target environment'
-        )
+pipelineJob('ansible-job') {
+  parameters {
+    environmentChoice {
+      name 'environment'
+      description 'Select the target environment'
     }
-    stages {
-        stage('Deploy') {
-            steps {
-                echo "Deploying to: ${params.TARGET_ENV}"
-            }
+    ansibleProjectRef {
+      name 'ref'
+      description 'Select ansible project ref'
+      projectId 'ansible'
+    }
+  }
+  definition {
+    cps {
+      script('''
+      node('dev') {
+        ansibleProject(projectId: 'ansible', ref: params.ref, cleanup: false) {
+            ansiblePlaybook(
+                user: 'ansible',
+                playbook: 'playbooks/ping.yml',
+                envName: params.environment
+            )
         }
+      }'''.stripIndent())
+      sandbox()
     }
+  }
 }
 ```
 
-### Pipeline Access Check
+## Pipeline Steps
 
+### `ansibleProject`
+
+Creates an isolated execution environment for Ansible operations.
+
+**Parameters:**
+- `projectId` (String): Identifier for the Ansible project
+- `ref` (String): Git reference (branch, tag, commit) to checkout
+- `cleanup` (Boolean): Whether to destroy the environment after execution
+  - `true`: Volatile mode - container and SSH agent are cleaned up
+  - `false`: Persistent mode - resources remain for reuse
+
+**Example:**
 ```groovy
-stage('Environment Check') {
-    steps {
-        script {
-            def result = checkEnvironmentACL('prod1')
-            
-            if (result.hasAccess) {
-                echo "Access granted to: ${result.environment}"
-                echo "SSH Key: ${result.sshCredentialId}"
-                echo "Vault Credentials: ${result.vaultCredentials}"
-                
-                // Use credentials for deployment
-                sshagent([result.sshCredentialId]) {
-                    sh "deploy.sh ${result.environment}"
-                }
-            } else {
-                error("Access denied: ${result.errorMessage}")
-            }
-        }
-    }
+ansibleProject(projectId: 'myproject', ref: 'main', cleanup: true) {
+    // Ansible operations here
 }
 ```
 
-## Configuration Reference
+### `ansiblePlaybook`
 
-### Environment Groups
+Executes an Ansible playbook within the project environment.
 
-```yaml
-environmentGroups:
-  - name: "group-name"
-    description: "Optional description"
-    environments: ["env1", "env2"]          # Environment names
-    tags: ["tag1", "tag2"]                  # Optional tags for filtering
-    sshCredentialId: "ssh-key-id"           # SSH credential for this group
-    vaultCredentials:                       # Vault credential mappings
-      - vaultId: "vault-name"
-        credentialId: "vault-token-id"
+**Parameters:**
+- `playbook` (String): Path to the playbook file
+- `user` (String): SSH user for connections
+- `envName` (String): Target environment name
+- Additional Ansible options as needed
+
+**Example:**
+```groovy
+ansiblePlaybook(
+    user: 'deploy',
+    playbook: 'site.yml',
+    envName: 'production',
+    extraVars: [
+        'app_version': '1.2.3'
+    ]
+)
 ```
 
-### ACL Rules
+## Parameter Types
 
-```yaml
-aclRules:
-  - name: "rule-name"
-    type: "allow"                           # "allow" or "deny"
-    priority: 200                           # Higher = higher priority
-    jobs: ["build-.*", "deploy-.*"]         # Regex patterns for job names
-    environments: ["prod1"]                 # Specific environments
-    environmentGroups: ["production"]       # Or environment groups
-    environmentTags: ["critical"]           # Or by tags
-    users: ["user1", "user2"]               # User IDs
-    groups: ["group1", "group2"]            # User groups
+### `environmentChoice`
+
+Provides a dropdown selection of available environments, filtered by user permissions.
+
+```groovy
+environmentChoice {
+    name 'environment'
+    description 'Select target environment'
+}
 ```
 
-### Rule Matching
+### `ansibleProjectRef`
 
-- **Jobs**: Regex patterns (`deploy-.*` matches `deploy-prod`, `deploy-staging`)
-- **Priority**: Higher numbers processed first
-- **Deny vs Allow**: Deny rules checked first, then allow rules
-- **Wildcards**: Use `*` for "all" in any field
+Provides a dropdown selection of available project references (branches, tags).
 
-## Access Patterns
-
-### Development Team
-```yaml
-- name: "dev-team-access"
-  type: "allow"
-  jobs: ["build-.*", "test-.*"]
-  environmentTags: ["development"]
-  users: ["developer1", "developer2"]
+```groovy
+ansibleProjectRef {
+    name 'ref'
+    description 'Select project version'
+    projectId 'ansible'
+}
 ```
 
-### Production Deployment
-```yaml
-- name: "prod-deployment"
-  type: "allow"  
-  jobs: ["deploy-.*", "release-.*"]
-  environmentTags: ["production"]
-  users: ["release-manager"]
-```
+## Access Control
 
-### Security Boundary
-```yaml
-- name: "block-prod-access"
-  type: "deny"
-  priority: 999
-  environmentTags: ["production"]
-  users: ["contractor", "intern"]
-```
+The plugin implements ACL-based environment access control:
+
+- Users only see environments they have permission to access
+- Environment choices are dynamically filtered based on user credentials
+- Failed access attempts are logged for security auditing
+
+## Resource Management
+
+### Container Management
+
+- Containers are labeled for tracking and discovery
+- Automatic cleanup of orphaned containers on Jenkins startup
+- Shared containers across multiple executions when `cleanup: false`
+
+### SSH Agent Management
+
+- One SSH agent per Jenkins node (singleton pattern)
+- Automatic discovery and adoption of orphaned agents
+- Reference counting for key management
+- Automatic cleanup of zombie processes and orphaned socket files
+
+## Performance Considerations
+
+### Persistent Mode (`cleanup: false`)
+
+**Advantages:**
+- Faster subsequent executions
+- Reduced Docker overhead
+- Persistent SSH connections
+
+**Use Cases:**
+- Development environments
+- Frequent playbook executions
+- Performance-critical pipelines
+
+### Volatile Mode (`cleanup: true`)
+
+**Advantages:**
+- Clean state for each execution
+- No resource leaks
+- Better isolation
+
+**Use Cases:**
+- Production deployments
+- Compliance requirements
+- One-off executions
 
 ## Troubleshooting
 
-### Empty Environment List
-- Check user has matching ACL rules
-- Verify job name matches rule patterns
-- Check rule priority order (deny vs allow)
+### Container Issues
 
-### Script Console Testing
-```groovy
-import io.jenkins.plugins.environmentacl.service.EnvironmentACLChecker
-
-// Test access for specific user/job/environment
-def hasAccess = EnvironmentACLChecker.hasAccess("username", [], "job-name", "environment")
-println "Access: " + hasAccess
-
-// Get accessible environments for job
-def environments = EnvironmentACLChecker.getAccessibleEnvironments("job-name")
-println "Accessible: " + environments
+Check for orphaned containers:
+```bash
+docker ps --filter "label=io.jenkins.sharedcontainer.managed=true"
 ```
 
-## Requirements
+### SSH Agent Issues
 
-- Jenkins 2.462.3+
-- Java 11+
-- Configuration as Code plugin (recommended)
+Check for active SSH agents:
+```bash
+find /tmp/jenkins-ssh-agents -name "*.sock"
+```
+
+### Plugin Logs
+
+Monitor Jenkins logs for discovery and cleanup activities:
+- Container discovery: `io.jenkins.plugins.pulsar.container.service`
+- SSH agent discovery: `io.jenkins.plugins.pulsar.ssh.service`
+
+## Advanced Configuration
+
+### Custom Container Images
+
+Configure base images for different Ansible environments:
+
+```groovy
+ansibleProject(
+    projectId: 'ansible',
+    ref: params.ref,
+    image: 'custom/ansible:latest',
+    cleanup: false
+) {
+    // operations
+}
+```
+
+### Environment-Specific Settings
+
+Override settings per environment:
+
+```groovy
+ansiblePlaybook(
+    playbook: 'deploy.yml',
+    envName: params.environment,
+    vaultPasswordFile: "/secrets/${params.environment}/vault-pass"
+)
+```
+
+## Security Considerations
+
+- SSH keys are managed securely through Jenkins credentials
+- Container isolation prevents cross-environment access
+- ACL enforcement at the parameter level
+- Audit logging for all environment access
+
+## Contributing
+
+The plugin is built with resource discovery and cleanup in mind. When extending functionality, ensure proper labeling for containers and cleanup of temporary resources.
 
 ## License
 
-MIT License
+[Your License Here]

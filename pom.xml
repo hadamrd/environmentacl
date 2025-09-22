@@ -222,12 +222,9 @@
         <configuration>
           <compatibleSinceVersion>${jenkins.version}</compatibleSinceVersion>
           <systemProperties>
-            <!-- <hudson.Main.development>true</hudson.Main.development> -->
             <casc.jenkins.config>${project.basedir}/src/test/resources/jenkins-config</casc.jenkins.config>
-            <io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>5000</io.jenkins.plugins.casc.ConfigurationAsCode.initialDelay>
             <jenkins.install.runSetupWizard>false</jenkins.install.runSetupWizard>
             <hudson.model.ParametersAction.keepUndefinedParameters>false</hudson.model.ParametersAction.keepUndefinedParameters>
-            <hudson.model.DirectoryBrowserSupport.CSP>default-src 'self'; style-src 'self' 'unsafe-inline';</hudson.model.DirectoryBrowserSupport.CSP>
             <java.util.logging.config.file>${project.basedir}/log.properties</java.util.logging.config.file>
           </systemProperties>
           <webApp>
