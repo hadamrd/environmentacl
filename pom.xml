@@ -31,8 +31,8 @@
   </scm>
 
   <properties>
-    <revision>1.0</revision>
-    <changelist>-SNAPSHOT</changelist>
+    <revision>1.0.0</revision>
+    <changelist></changelist>
     <jenkins.version>2.516.3</jenkins.version>
     <bom.artifactId>bom-2.516.x</bom.artifactId>
     <bom.version>5353.v3dec76e40169</bom.version>

@@ -1,4 +1,4 @@
-# Jenkins Pulsar Deployment Framework
+# Jenkins Jerakin Deployment Framework
 
 A comprehensive Jenkins plugin that provides configuration-driven deployment automation with environment-based access controls, job templating, and infrastructure orchestration. This plugin enables teams to define reusable deployment patterns while maintaining security and infrastructure isolation.
 
