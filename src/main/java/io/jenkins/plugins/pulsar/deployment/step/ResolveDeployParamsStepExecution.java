@@ -4,7 +4,10 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.deployment.DeploymentGlobalConfiguration;
 import io.jenkins.plugins.pulsar.deployment.model.DeploymentJob;
+import io.jenkins.plugins.pulsar.environment.EnvironmentACLGlobalConfiguration;
+
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -55,6 +58,22 @@ public class ResolveDeployParamsStepExecution extends SynchronousStepExecution<M
         // Determine environment with precedence
         String environment = determineEnvironment(deployParams);
         deployParams.put("environment", environment);
+
+        // Add node label resolution based on environment
+        try {
+            EnvironmentACLGlobalConfiguration envConfig = EnvironmentACLGlobalConfiguration.get();
+            String nodeLabels = envConfig.getNodeLabelsForEnvironment(environment);
+            deployParams.put("nodeLabels", nodeLabels);
+            
+            List<String> nodeLabelsList = envConfig.getNodeLabelsListForEnvironment(environment);
+            deployParams.put("nodeLabelsList", nodeLabelsList);
+            
+            listener.getLogger().println("Node labels for environment " + environment + ": " + nodeLabels);
+            
+        } catch (Exception e) {
+            listener.getLogger().println("Warning: Could not determine node labels for environment " + environment + ": " + e.getMessage());
+            deployParams.put("nodeLabels", "master"); // fallback
+        }
 
         listener.getLogger().println("Final resolved parameters: " + deployParams);
         return deployParams;
