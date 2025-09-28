@@ -1,244 +1,338 @@
-# Jenkins Pulsar Ansible Plugin
+# Jenkins Pulsar Deployment Framework
 
-A Jenkins plugin that provides configuration-driven Ansible automation with isolated, volatile execution environments. This plugin enables teams to run Ansible playbooks within containerized environments while maintaining security through ACL-based access controls.
+A comprehensive Jenkins plugin that provides configuration-driven deployment automation with environment-based access controls, job templating, and infrastructure orchestration. This plugin enables teams to define reusable deployment patterns while maintaining security and infrastructure isolation.
 
 ## Features
 
-- **Isolated Execution Environments**: Each Ansible execution runs in a dedicated Docker container with managed SSH agents
-- **Configuration-Driven Pipelines**: Define Ansible jobs using simple configuration syntax
-- **Environment Access Control**: ACL-based restrictions on environment access per user/team
-- **Project Reference Management**: Version-controlled Ansible project references with dynamic selection
-- **Persistent vs Volatile Modes**: Choose between container cleanup or reuse for performance optimization
-- **Automated Resource Management**: Automatic discovery and cleanup of orphaned containers and SSH agents
+- **Configuration-as-Code**: Define entire deployment workflows using JCaS YAML
+- **Job Templates**: Create reusable deployment patterns with parameterized scripts
+- **Environment Access Control**: ACL-based restrictions with user/group permissions
+- **Dynamic Infrastructure Selection**: Automatic node selection based on environment mapping
+- **Parameter Precedence**: UI parameters can be overridden by job-specific configuration
+- **Ansible Integration**: Built-in support for containerized Ansible execution
+- **Credential Management**: Environment-specific SSH keys and vault credentials
 
 ## Architecture
 
-The plugin manages two key components:
+The plugin operates on three main concepts:
 
-1. **Container Manager**: Handles shared Docker containers for Ansible execution
-2. **SSH Agent Manager**: Manages SSH key distribution and agent lifecycle
-
-Both components support automatic discovery on Jenkins startup to adopt orphaned resources back into memory management.
-
-## Installation
-
-1. Install the plugin through Jenkins Plugin Manager
-2. Ensure Docker is available on Jenkins agents
-3. Configure appropriate permissions for Jenkins to manage Docker containers
+1. **Environment Groups**: Define infrastructure topology and access credentials
+2. **Job Templates**: Reusable deployment patterns with parameterized execution
+3. **Deployment Jobs**: Specific instances that reference templates with custom parameters
 
 ## Configuration
 
-### Basic Pipeline Job
+### Environment Groups & Access Control
 
-```groovy
-pipelineJob('ansible-job') {
-  parameters {
-    environmentChoice {
-      name 'environment'
-      description 'Select the target environment'
-    }
-    ansibleProjectRef {
-      name 'ref'
-      description 'Select ansible project ref'
-      projectId 'ansible'
-    }
-  }
-  definition {
-    cps {
-      script('''
-      node('dev') {
-        ansibleProject(projectId: 'ansible', ref: params.ref, cleanup: false) {
-            ansiblePlaybook(
-                user: 'ansible',
-                playbook: 'playbooks/ping.yml',
-                envName: params.environment
-            )
-        }
-      }'''.stripIndent())
-      sandbox()
-    }
-  }
-}
+Define environment groups with associated infrastructure and credentials:
+
+```yaml
+unclassified:
+  environmentACL:
+    environmentGroups:
+      - name: "production"
+        description: "Production environments"
+        environments:
+          - "prod-eu"
+          - "prod-us"
+        nodeLabels:
+          - "prod-agent"
+        sshCredentialId: "prod-ssh-key"
+        vaultCredentials:
+          - vaultId: "prod"
+            credentialId: "prod-vault-key"
+        tags:
+          - "production"
+          - "critical"
+      
+      - name: "development"
+        description: "Development environments"
+        environments:
+          - "dev"
+          - "staging"
+        nodeLabels:
+          - "dev-agent"
+        sshCredentialId: "dev-ssh-key"
+
+    aclRules:
+      - name: "sre-production-access"
+        type: "allow"
+        priority: 300
+        jobs: ["*"]
+        environmentGroups: ["production"]
+        users: ["sre-team"]
+      
+      - name: "developers-dev-access"
+        type: "allow"
+        priority: 200
+        jobs: ["*"]
+        environmentGroups: ["development"]
+        users: ["dev-team"]
 ```
+
+### Ansible Project Configuration
+
+Configure Ansible projects with environment-specific inventory mapping:
+
+```yaml
+unclassified:
+  ansibleProjects:
+    projects:
+      - id: "infrastructure"
+        repository: "https://github.com/company/ansible-infrastructure"
+        defaultBranch: "main"
+        execEnv: "local/ansible:latest"
+        envGroups:
+          - groupName: "production"
+            inventoryPathTemplate: "inventory/prod"
+            vaultIds: ["prod"]
+          - groupName: "development"
+            inventoryPathTemplate: "inventory/dev"
+            vaultIds: ["dev"]
+        vaults:
+          - id: "prod"
+            credentialId: "prod-ansible-vault"
+          - id: "dev"
+            credentialId: "dev-ansible-vault"
+```
+
+### Job Templates & Deployment Jobs
+
+Define reusable templates and specific job instances:
+
+```yaml
+unclassified:
+  pulsarDeployments:
+    templates:
+      - name: "ansible-deployment"
+        description: "Standard Ansible deployment template"
+        params:
+          - name: "environment"
+            type: "environment"
+            description: "Target environment"
+          - name: "ref"
+            type: "ansibleProjectRef"
+            description: "Ansible project reference"
+            properties:
+              - name: "projectId"
+                value: "infrastructure"
+          - name: "playbook"
+            type: "string"
+            description: "Playbook to execute"
+        script: |
+          def deployParams = resolveDeployParams(jobId: env.JOB_BASE_NAME)
+          
+          node(deployParams.nodeLabels) {
+            ansibleProject(projectId: 'infrastructure', ref: deployParams.ref) {
+              ansiblePlaybook(
+                user: 'ansible',
+                playbook: deployParams.playbook,
+                envName: deployParams.environment
+              )
+            }
+          }
+
+    jobs:
+      - id: "deploy-webservers"
+        name: "Deploy Web Servers"
+        category: "Infrastructure"
+        templateName: "ansible-deployment"
+        params:
+          - name: "playbook"
+            value: "webserver.yml"  # Fixed parameter
+      
+      - id: "deploy-databases"
+        name: "Deploy Database Cluster"
+        category: "Infrastructure"
+        templateName: "ansible-deployment"
+        params:
+          - name: "playbook"
+            value: "database.yml"
+          - name: "ref"
+            value: "stable"  # Force stable branch
+```
+
+## Parameter Resolution & Precedence
+
+The framework resolves parameters with the following precedence (highest to lowest):
+
+1. **Job-level fixed parameters** (defined in job config)
+2. **Step configuration** (passed to `resolveDeployParams`)
+3. **UI parameters** (filled by user when running the job)
+
+### Example Resolution
+
+For a job with this configuration:
+```yaml
+params:
+  - name: "playbook"
+    value: "webserver.yml"  # Fixed by job config
+```
+
+And a template with these parameters:
+```yaml
+params:
+  - name: "environment"
+    type: "environment"
+  - name: "playbook"
+    type: "string"
+```
+
+**Result:**
+- User sees only "environment" parameter in UI (playbook is fixed)
+- `resolveDeployParams` returns `{environment: "prod-eu", playbook: "webserver.yml"}`
+- Template script uses `deployParams.playbook` which is always "webserver.yml"
+
+## Generated Jobs
+
+The plugin automatically creates Jenkins jobs based on your configuration:
+
+```
+projects/
+├── Infrastructure/
+│   ├── PulsarJob_deploy-webservers    # Only shows 'environment' parameter
+│   └── PulsarJob_deploy-databases     # Shows 'environment' only (ref fixed to 'stable')
+└── Applications/
+    └── PulsarJob_app-deployment
+```
+
+Each job:
+- Shows only non-fixed template parameters as build parameters
+- Runs on appropriate nodes based on environment selection
+- Has access to environment-specific credentials
+- Executes the template script with resolved parameters
 
 ## Pipeline Steps
 
+### `resolveDeployParams`
+
+Resolves deployment parameters with proper precedence and infrastructure context.
+
+```groovy
+def deployParams = resolveDeployParams(jobId: 'deploy-webservers')
+
+// Returns:
+// {
+//   environment: "prod-eu",
+//   playbook: "webserver.yml",
+//   nodeLabels: "prod-agent",
+//   ref: "main"
+// }
+```
+
 ### `ansibleProject`
 
-Creates an isolated execution environment for Ansible operations.
+Creates isolated Ansible execution environment:
 
-**Parameters:**
-- `projectId` (String): Identifier for the Ansible project
-- `ref` (String): Git reference (branch, tag, commit) to checkout
-- `cleanup` (Boolean): Whether to destroy the environment after execution
-  - `true`: Volatile mode - container and SSH agent are cleaned up
-  - `false`: Persistent mode - resources remain for reuse
-
-**Example:**
 ```groovy
-ansibleProject(projectId: 'myproject', ref: 'main', cleanup: true) {
-    // Ansible operations here
+ansibleProject(projectId: 'infrastructure', ref: deployParams.ref) {
+    ansiblePlaybook(
+        user: 'ansible',
+        playbook: deployParams.playbook,
+        envName: deployParams.environment
+    )
 }
 ```
 
-### `ansiblePlaybook`
+### `checkEnvironmentACL`
 
-Executes an Ansible playbook within the project environment.
-
-**Parameters:**
-- `playbook` (String): Path to the playbook file
-- `user` (String): SSH user for connections
-- `envName` (String): Target environment name
-- Additional Ansible options as needed
-
-**Example:**
-```groovy
-ansiblePlaybook(
-    user: 'deploy',
-    playbook: 'site.yml',
-    envName: 'production',
-    extraVars: [
-        'app_version': '1.2.3'
-    ]
-)
-```
-
-## Parameter Types
-
-### `environmentChoice`
-
-Provides a dropdown selection of available environments, filtered by user permissions.
+Validates environment access and provides credential information:
 
 ```groovy
-environmentChoice {
-    name 'environment'
-    description 'Select target environment'
-}
+def aclResult = checkEnvironmentACL(deployParams.environment)
+// Returns access status, SSH credentials, vault mappings
 ```
 
-### `ansibleProjectRef`
+## Security Model
 
-Provides a dropdown selection of available project references (branches, tags).
-
-```groovy
-ansibleProjectRef {
-    name 'ref'
-    description 'Select project version'
-    projectId 'ansible'
-}
-```
-
-## Access Control
-
-The plugin implements ACL-based environment access control:
-
+### Access Control
 - Users only see environments they have permission to access
-- Environment choices are dynamically filtered based on user credentials
-- Failed access attempts are logged for security auditing
+- Environment parameters are filtered based on ACL rules
+- Access denials are logged for security auditing
 
-## Resource Management
+### Credential Management
+- SSH keys are environment-specific and managed through Jenkins credentials
+- Ansible vault passwords are mapped per environment group
+- No credentials are exposed in pipeline logs
 
-### Container Management
+### Infrastructure Isolation
+- Jobs run on environment-appropriate nodes based on labels
+- Container isolation for Ansible execution
+- Environment-specific inventory and configuration
 
-- Containers are labeled for tracking and discovery
-- Automatic cleanup of orphaned containers on Jenkins startup
-- Shared containers across multiple executions when `cleanup: false`
+## Use Cases
 
-### SSH Agent Management
+### Standard Infrastructure Deployment
+```yaml
+# Template defines the pattern
+templates:
+  - name: "infrastructure"
+    params:
+      - name: "environment"
+        type: "environment"
+      - name: "component"
+        type: "choice"
+        properties:
+          - name: "choices"
+            value: "webserver,database,loadbalancer"
 
-- One SSH agent per Jenkins node (singleton pattern)
-- Automatic discovery and adoption of orphaned agents
-- Reference counting for key management
-- Automatic cleanup of zombie processes and orphaned socket files
-
-## Performance Considerations
-
-### Persistent Mode (`cleanup: false`)
-
-**Advantages:**
-- Faster subsequent executions
-- Reduced Docker overhead
-- Persistent SSH connections
-
-**Use Cases:**
-- Development environments
-- Frequent playbook executions
-- Performance-critical pipelines
-
-### Volatile Mode (`cleanup: true`)
-
-**Advantages:**
-- Clean state for each execution
-- No resource leaks
-- Better isolation
-
-**Use Cases:**
-- Production deployments
-- Compliance requirements
-- One-off executions
-
-## Troubleshooting
-
-### Container Issues
-
-Check for orphaned containers:
-```bash
-docker ps --filter "label=io.jenkins.sharedcontainer.managed=true"
+# Jobs customize for specific components
+jobs:
+  - id: "deploy-webserver"
+    templateName: "infrastructure"
+    params:
+      - name: "component"
+        value: "webserver"  # Users only select environment
 ```
 
-### SSH Agent Issues
+### Application Deployment with Version Control
+```yaml
+templates:
+  - name: "app-deployment"
+    params:
+      - name: "version"
+        type: "string"
+        description: "Application version"
+      - name: "environment"
+        type: "environment"
 
-Check for active SSH agents:
-```bash
-find /tmp/jenkins-ssh-agents -name "*.sock"
+jobs:
+  - id: "deploy-api-prod"
+    templateName: "app-deployment"
+    params:
+      - name: "environment"
+        value: "prod-eu"  # Lock to production
 ```
 
-### Plugin Logs
-
-Monitor Jenkins logs for discovery and cleanup activities:
-- Container discovery: `io.jenkins.plugins.pulsar.container.service`
-- SSH agent discovery: `io.jenkins.plugins.pulsar.ssh.service`
-
-## Advanced Configuration
-
-### Custom Container Images
-
-Configure base images for different Ansible environments:
-
-```groovy
-ansibleProject(
-    projectId: 'ansible',
-    ref: params.ref,
-    image: 'custom/ansible:latest',
-    cleanup: false
-) {
-    // operations
-}
+### Multi-Environment Rollout
+```yaml
+jobs:
+  - id: "rollout-feature"
+    templateName: "app-deployment"
+    # No fixed params - users select any environment and version
 ```
 
-### Environment-Specific Settings
+## Benefits
 
-Override settings per environment:
+1. **Standardization**: Templates ensure consistent deployment patterns
+2. **Security**: Environment-based access control with credential isolation
+3. **Flexibility**: Parameter precedence allows customization without duplication
+4. **Maintainability**: Configuration-as-code approach with centralized management
+5. **Scalability**: One template can generate dozens of specialized jobs
+6. **Compliance**: Built-in access logging and environment restrictions
 
-```groovy
-ansiblePlaybook(
-    playbook: 'deploy.yml',
-    envName: params.environment,
-    vaultPasswordFile: "/secrets/${params.environment}/vault-pass"
-)
-```
+## Migration from Legacy Jobs
 
-## Security Considerations
+Replace manual job creation with template-based configuration:
 
-- SSH keys are managed securely through Jenkins credentials
-- Container isolation prevents cross-environment access
-- ACL enforcement at the parameter level
-- Audit logging for all environment access
+**Before:**
+- 50 manually created Jenkins jobs
+- Copy-paste configuration with subtle differences
+- Manual credential management
 
-## Contributing
+**After:**
+- 3 job templates
+- 50 job definitions in JCaS YAML
+- Automatic credential and infrastructure mapping
 
-The plugin is built with resource discovery and cleanup in mind. When extending functionality, ensure proper labeling for containers and cleanup of temporary resources.
-
-## License
-
-[Your License Here]
+The framework transforms deployment management from job-centric to pattern-centric, enabling teams to focus on deployment logic rather than Jenkins configuration.
