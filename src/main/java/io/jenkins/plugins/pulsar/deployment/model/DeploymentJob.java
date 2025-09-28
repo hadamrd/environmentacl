@@ -3,14 +3,12 @@ package io.jenkins.plugins.pulsar.deployment.model;
 import hudson.Extension;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 public class DeploymentJob implements Describable<DeploymentJob>, Serializable {
     private static final long serialVersionUID = 1L;
@@ -18,15 +16,15 @@ public class DeploymentJob implements Describable<DeploymentJob>, Serializable {
     private final String id;
     private final String name;
     private final String category;
-    private final String jobTemplate;
+    private final String templateName;
     private final List<JobParameter> params;
 
     @DataBoundConstructor
-    public DeploymentJob(String id, String name, String category, String jobTemplate, List<JobParameter> params) {
+    public DeploymentJob(String id, String name, String category, String templateName, List<JobParameter> params) {
         this.id = id;
         this.name = name;
         this.category = category;
-        this.jobTemplate = jobTemplate;
+        this.templateName = templateName;
         this.params = params != null ? params : new ArrayList<>();
     }
 
@@ -43,8 +41,8 @@ public class DeploymentJob implements Describable<DeploymentJob>, Serializable {
         return category;
     }
 
-    public String getJobTemplate() {
-        return jobTemplate;
+    public String getTemplateName() {
+        return templateName;
     }
 
     public List<JobParameter> getParams() {

@@ -38,7 +38,7 @@ public class VaultManager implements Serializable {
             listener.getLogger().println("No vaults to setup");
             return;
         }
-        
+
         // Create vault directory
         container.execute("mkdir -p " + vaultDir, launcher, listener);
 

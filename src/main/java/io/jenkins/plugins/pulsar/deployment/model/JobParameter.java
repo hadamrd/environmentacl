@@ -3,9 +3,8 @@ package io.jenkins.plugins.pulsar.deployment.model;
 import hudson.Extension;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import org.kohsuke.stapler.DataBoundConstructor;
-
 import java.io.Serializable;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 public class JobParameter implements Describable<JobParameter>, Serializable {
     private static final long serialVersionUID = 1L;

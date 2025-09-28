@@ -1,67 +1,61 @@
 package io.jenkins.plugins.pulsar.deployment;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.job.WorkflowJob;
-import org.springframework.security.access.AccessDeniedException;
-
 import com.cloudbees.hudson.plugins.folder.Folder;
-
 import hudson.model.Descriptor.FormException;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.TopLevelItem;
 import io.jenkins.plugins.pulsar.deployment.model.DeploymentJob;
+import io.jenkins.plugins.pulsar.deployment.model.DeploymentTemplate;
 import io.jenkins.plugins.pulsar.environment.parameters.EnvironmentChoiceParameterDefinition;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.springframework.security.access.AccessDeniedException;
 
-/**
- * Manages the creation and updating of Jenkins jobs for deployment components
- */
+/** Manages the creation and updating of Jenkins jobs for deployment components */
 public class DeploymentJobManager {
-    
+
     private static final Logger LOGGER = Logger.getLogger(DeploymentJobManager.class.getName());
     private static final String ROOT_FOLDER_NAME = "projects";
     private static DeploymentJobManager instance;
-    
+
     private DeploymentJobManager() {}
-    
+
     public static synchronized DeploymentJobManager getInstance() {
         if (instance == null) {
             instance = new DeploymentJobManager();
         }
         return instance;
     }
-    
-    /**
-     * Update all jobs based on current component configuration
-     */
+
+    /** Update all jobs based on current component configuration */
     public void updateAllJobs() throws IOException, AccessDeniedException, InterruptedException, FormException {
         DeploymentGlobalConfiguration config = DeploymentGlobalConfiguration.get();
-        
+
         // Ensure root folder exists
         Folder rootFolder = ensureRootFolder();
-        
+
         // Get all components and organize by category
         List<DeploymentJob> components = config.getJobs();
-        
+
         for (String category : config.getAllCategories()) {
             Folder categoryFolder = ensureCategoryFolder(rootFolder, category);
             List<DeploymentJob> categoryComponents = config.getComponentsByCategory(category);
-            
+
             for (DeploymentJob component : categoryComponents) {
                 createOrUpdateJob(categoryFolder, component);
             }
         }
-        
+
         LOGGER.log(Level.INFO, "Successfully updated {0} component jobs", components.size());
     }
-    
+
     public void createOrUpdateJob(Folder parent, DeploymentJob jobConfig)
             throws IOException, AccessDeniedException, InterruptedException, FormException {
         String jobName = "PulsarJob_" + jobConfig.getId();
@@ -83,7 +77,7 @@ public class DeploymentJobManager {
         job.setDescription("Deploy component " + jobConfig.getId());
 
         // Replace parameters
-        List<ParameterDefinition> parameters = createBasicParameters();
+        List<ParameterDefinition> parameters = createParameters(jobConfig);
         job.removeProperty(ParametersDefinitionProperty.class);
         if (!parameters.isEmpty()) {
             job.addProperty(new ParametersDefinitionProperty(parameters));
@@ -98,46 +92,31 @@ public class DeploymentJobManager {
         LOGGER.log(Level.INFO, "Created/updated job: {0}", job.getFullName());
     }
 
-    /**
-     * Generate the pipeline script that resolves parameters then calls shared library directly
-     */
-    private String generatePipelineScript(DeploymentJob job) {
-        return String.format("""
-            @Library('pulsar-library') _
-            
-            node {
-                // Use plugin to resolve parameters and validate permissions
-                def deployInfo = deployJob(jobId: '%s', config: [:])
-                
-                echo "Executing template: ${deployInfo.jobTemplate}"
-                echo "Environment: ${deployInfo.environment}"
-                echo "Parameters: ${deployInfo.deployParams.keySet()}"
-                
-                // Call shared library template directly with resolved parameters
-                def template = %s(deployInfo.jobParams)
-                
-                // Validate parameters if template provides validation
-                if (template.validateParams) {
-                    echo "Validating deployment parameters..."
-                    template.validateParams(deployInfo.deployParams)
-                    echo "Parameter validation passed"
-                }
-                
-                // Execute the deployment
-                if (template.run) {
-                    echo "Starting deployment execution..."
-                    template.run(deployInfo.deployParams)
-                    echo "Deployment completed successfully"
-                } else {
-                    error("Template ${deployInfo.jobTemplate} missing 'run' closure")
-                }
-            }
-            """, job.getId(), job.getJobTemplate());
+    /** Generate the pipeline script that resolves parameters then calls shared library directly */
+    private String generatePipelineScript(DeploymentJob jobConfig) {
+        DeploymentGlobalConfiguration config = DeploymentGlobalConfiguration.get();
+        DeploymentTemplate template = config.getTemplate(jobConfig.getTemplateName());
+
+        if (template == null) {
+            return String.format("error('Template not found: %s')", jobConfig.getTemplateName());
+        }
+
+        String templateScript = template.getScript();
+        if (templateScript == null || templateScript.trim().isEmpty()) {
+            return String.format("error('Template %s has no script defined')", jobConfig.getTemplateName());
+        }
+
+        // Simple parameter resolution and template execution
+        return String.format(
+                """
+            def deployParams = resolveDeployParams(jobId: '%s')
+
+            %s
+            """,
+                jobConfig.getId(), templateScript);
     }
-    
-    /**
-     * Ensure the root folder exists
-     */
+
+    /** Ensure the root folder exists */
     private Folder ensureRootFolder() throws IOException {
         Jenkins jenkins = Jenkins.get();
         Folder rootFolder = (Folder) jenkins.getItem(ROOT_FOLDER_NAME);
@@ -152,14 +131,12 @@ public class DeploymentJobManager {
 
         return rootFolder;
     }
-    
-    /**
-     * Ensure a category folder exists
-     */
+
+    /** Ensure a category folder exists */
     private Folder ensureCategoryFolder(Folder parent, String category) throws IOException {
         String sanitizedCategory = sanitizeName(category);
         Folder categoryFolder = (Folder) parent.getItem(sanitizedCategory);
-        
+
         if (categoryFolder == null) {
             categoryFolder = new Folder(parent, sanitizedCategory);
             categoryFolder.setDisplayName(category);
@@ -167,45 +144,62 @@ public class DeploymentJobManager {
             parent.add(categoryFolder, sanitizedCategory);
             categoryFolder.save();
         }
-        
+
         return categoryFolder;
     }
-    
-    /**
-     * Create basic parameters for a component
-     */
-    private List<ParameterDefinition> createBasicParameters() {
+
+    /** Create parameters by reading from job template and applying job overrides */
+    private List<ParameterDefinition> createParameters(DeploymentJob jobConfig) {
         List<ParameterDefinition> parameters = new ArrayList<>();
-        
-        // Add environment parameter
-        parameters.add(new EnvironmentChoiceParameterDefinition(
-            "environment",
-            "Environment to deploy to",
-            null
-        ));
-        
+
+        // Get template from global configuration
+        DeploymentGlobalConfiguration config = DeploymentGlobalConfiguration.get();
+        DeploymentTemplate template = config.getTemplate(jobConfig.getTemplateName());
+
+        if (template != null) {
+            // Get all template parameters
+            List<ParameterDefinition> templateParams = template.toParameterDefinitions();
+
+            // Add parameters that are not overridden by job config
+            for (ParameterDefinition templateParam : templateParams) {
+                String paramName = templateParam.getName();
+
+                // Check if job provides a fixed value for this parameter
+                boolean hasFixedValue =
+                        jobConfig.getParams().stream().anyMatch(param -> paramName.equals(param.getName()));
+
+                if (!hasFixedValue) {
+                    parameters.add(templateParam);
+                }
+            }
+        } else {
+            LOGGER.log(
+                    Level.WARNING,
+                    "Template not found: {0}. Adding basic environment parameter only.",
+                    jobConfig.getTemplateName());
+
+            // Fallback to basic environment parameter
+            parameters.add(new EnvironmentChoiceParameterDefinition("environment", "Environment to deploy to", null));
+        }
+
         return parameters;
     }
-    
-    /**
-     * Sanitize name for use as Jenkins item name
-     */
+
+    /** Sanitize name for use as Jenkins item name */
     private String sanitizeName(String name) {
         return name.replaceAll("[^a-zA-Z0-9_-]", "_");
     }
 
-    /**
-     * Get deployment job by ID from global configuration
-     */
+    /** Get deployment job by ID from global configuration */
     public static DeploymentJob getDeploymentJobById(String jobId) throws Exception {
         DeploymentGlobalConfiguration config = DeploymentGlobalConfiguration.get();
-        
+
         for (DeploymentJob job : config.getJobs()) {
             if (jobId.equals(job.getId())) {
                 return job;
             }
         }
-        
+
         return null;
     }
 }

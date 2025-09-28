@@ -62,16 +62,17 @@ public class SshAgent implements Serializable {
             // Create consistent directory
             String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
             this.socketPath = String.format("%s/agent-%s-%s.sock", SSH_AGENTS_DIR, nodeName, uuid);
-            
+
             // Create directory and start agent
             List<String> startCmd = Arrays.asList(
-                "/bin/sh", "-c",
-                String.format("mkdir -p %s && chmod 700 %s && ssh-agent -s -a %s", 
-                             SSH_AGENTS_DIR, SSH_AGENTS_DIR, socketPath)
-            );
+                    "/bin/sh",
+                    "-c",
+                    String.format(
+                            "mkdir -p %s && chmod 700 %s && ssh-agent -s -a %s",
+                            SSH_AGENTS_DIR, SSH_AGENTS_DIR, socketPath));
 
             String agentOutput = LaunchHelper.executeAndCapture(launcher, startCmd, 30, listener);
-            
+
             Pattern pattern = Pattern.compile("SSH_AGENT_PID=(\\d+)");
             Matcher matcher = pattern.matcher(agentOutput);
             if (matcher.find()) {
@@ -117,7 +118,7 @@ public class SshAgent implements Serializable {
             listener.getLogger().println("Loading SSH keys: " + keysToLoad);
 
             int keysAdded = 0;
-            
+
             // Load each key directly via stdin - much more secure!
             for (String credentialId : keysToLoad) {
                 SSHUserPrivateKey credential =
@@ -136,9 +137,7 @@ public class SshAgent implements Serializable {
 
                     // Add key directly via stdin with 1 hour timeout
                     List<String> addCmd = Arrays.asList(
-                            "/bin/sh", "-c",
-                            String.format("SSH_AUTH_SOCK='%s' ssh-add -t 3600 -", socketPath)
-                    );
+                            "/bin/sh", "-c", String.format("SSH_AUTH_SOCK='%s' ssh-add -t 3600 -", socketPath));
 
                     ByteArrayInputStream keyInput = new ByteArrayInputStream(privateKey.getBytes());
 
@@ -154,7 +153,7 @@ public class SshAgent implements Serializable {
                     if (result != 0) {
                         throw new RuntimeException("Failed to add SSH key for credential: " + credentialId);
                     }
-                    
+
                     keysAdded++;
                 }
             }
@@ -162,8 +161,9 @@ public class SshAgent implements Serializable {
             if (keysAdded > 0) {
                 // Update reference counts only if successful
                 credentialIds.forEach(credId -> loadedKeys.merge(credId, 1, Integer::sum));
-                listener.getLogger().println(String.format("Added %d SSH keys. Agent has %d unique credentials", 
-                                                        keysAdded, loadedKeys.size()));
+                listener.getLogger()
+                        .println(String.format(
+                                "Added %d SSH keys. Agent has %d unique credentials", keysAdded, loadedKeys.size()));
 
                 // Update expected state after adding keys
                 updateExpectedState(launcher, listener);
@@ -263,31 +263,31 @@ public class SshAgent implements Serializable {
     public void updateExpectedState(Launcher launcher, TaskListener listener) {
         try {
             List<String> listCmd = Arrays.asList(
-                "/bin/sh", "-c", 
-                String.format("SSH_AUTH_SOCK='%s' ssh-add -l 2>/dev/null || echo 'no keys'", socketPath)
-            );
-            
+                    "/bin/sh",
+                    "-c",
+                    String.format("SSH_AUTH_SOCK='%s' ssh-add -l 2>/dev/null || echo 'no keys'", socketPath));
+
             this.expectedAgentOutput = LaunchHelper.executeAndCapture(launcher, listCmd, 5, listener);
         } catch (Exception e) {
             listener.getLogger().println("Failed to update expected state: " + e.getMessage());
         }
     }
-    
+
     public boolean isSynced(Launcher launcher, TaskListener listener) {
         try {
             List<String> listCmd = Arrays.asList(
-                "/bin/sh", "-c", 
-                String.format("SSH_AUTH_SOCK='%s' ssh-add -l 2>/dev/null || echo 'no keys'", socketPath)
-            );
-            
+                    "/bin/sh",
+                    "-c",
+                    String.format("SSH_AUTH_SOCK='%s' ssh-add -l 2>/dev/null || echo 'no keys'", socketPath));
+
             String currentOutput = LaunchHelper.executeAndCapture(launcher, listCmd, 5, listener);
             boolean synced = expectedAgentOutput.equals(currentOutput);
-            
+
             if (!synced) {
                 listener.getLogger().println("Expected: " + expectedAgentOutput);
                 listener.getLogger().println("Actual: " + currentOutput);
             }
-            
+
             return synced;
         } catch (Exception e) {
             return false;
@@ -303,13 +303,13 @@ public class SshAgent implements Serializable {
                 agent = new SshAgent(nodeName);
                 instances.put(nodeName, agent);
             }
-            
+
             // Set the discovered socket and PID
             agent.socketPath = socketPath;
             agent.agentPid = pid;
             // Clear loaded keys since we don't know what was loaded
             agent.loadedKeys.clear();
-            
+
         } finally {
             globalLock.unlock();
         }

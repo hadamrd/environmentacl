@@ -99,8 +99,7 @@ public class AnsibleContext implements Serializable {
             // Create new context
             String sRef = ref.replaceAll("[^a-zA-Z0-9\\-\\.]", "_");
             String projectDir = String.format("/%s/%s", projectId, sRef);
-            AnsibleContext context = new AnsibleContext(
-                    projectId, ref, project, nodeName, contextKey, projectDir);
+            AnsibleContext context = new AnsibleContext(projectId, ref, project, nodeName, contextKey, projectDir);
 
             context.initialize(stepContext, containerOptions, launcher, listener);
 
@@ -137,8 +136,9 @@ public class AnsibleContext implements Serializable {
     }
 
     /** Create or get shared container */
-    private ContainerManager spinExecEnv(StepContext stepContext, List<String> containerOptions, 
-                                    Launcher launcher, TaskListener listener) throws Exception {
+    private ContainerManager spinExecEnv(
+            StepContext stepContext, List<String> containerOptions, Launcher launcher, TaskListener listener)
+            throws Exception {
         List<String> finalOpts = new ArrayList<>();
         if (containerOptions != null) {
             finalOpts.addAll(containerOptions);
@@ -150,7 +150,7 @@ public class AnsibleContext implements Serializable {
 
         SharedContainerStep containerStep = createContainerStep(finalOpts);
         var container = ContainerManager.getOrCreate(nodeName, project.getExecEnv(), containerStep, launcher, listener);
-        
+
         // Set SSH_AUTH_SOCK after agent is started
         if (sshAgent != null && sshAgent.getSocketPath() != null) {
             container.setEnv("SSH_AUTH_SOCK", sshAgent.getSocketPath());
@@ -165,7 +165,7 @@ public class AnsibleContext implements Serializable {
             listener.getLogger().println("No SSH agent instance, creating new one...");
             this.sshAgent = SshAgent.getInstance(nodeName);
         }
-        
+
         if (!sshAgent.isRunning(launcher, listener)) {
             listener.getLogger().println("SSH agent not running, restarting...");
 
@@ -229,16 +229,21 @@ public class AnsibleContext implements Serializable {
     private void checkoutProject(Launcher launcher, TaskListener listener) throws Exception {
         // One command: try to reuse existing repo, otherwise clone fresh
         String cmd = String.format(
-            "(cd %s && git remote get-url origin 2>/dev/null | grep -q '%s' && git fetch && git reset --hard %s) || " +
-            "(rm -rf %s && git clone %s %s && cd %s && git checkout %s)",
-            projectDir, project.getRepository(), ref,
-            projectDir, project.getRepository(), projectDir, projectDir, ref
-        );
-        
+                "(cd %s && git remote get-url origin 2>/dev/null | grep -q '%s' && git fetch && git reset --hard %s) || "
+                        + "(rm -rf %s && git clone %s %s && cd %s && git checkout %s)",
+                projectDir,
+                project.getRepository(),
+                ref,
+                projectDir,
+                project.getRepository(),
+                projectDir,
+                projectDir,
+                ref);
+
         if (execEnv.execute(cmd, launcher, listener) != 0) {
             throw new Exception("Failed to checkout: " + project.getRepository() + "@" + ref);
         }
-        
+
         listener.getLogger().println("Project checked out: " + project.getRepository() + "@" + ref);
     }
 

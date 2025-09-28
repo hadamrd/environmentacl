@@ -4,8 +4,6 @@ import hudson.Launcher;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pulsar.container.steps.SharedContainerStep;
 import io.jenkins.plugins.pulsar.shared.LaunchHelper;
-
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;

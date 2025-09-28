@@ -18,13 +18,13 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.StaplerRequest2;
 
-public class AnsibleProjectBranchParameterDefinition extends ParameterDefinition {
-    private static final Logger LOGGER = Logger.getLogger(AnsibleProjectBranchParameterDefinition.class.getName());
+public class AnsibleProjectRefParameterDefinition extends ParameterDefinition {
+    private static final Logger LOGGER = Logger.getLogger(AnsibleProjectRefParameterDefinition.class.getName());
 
     private String projectId;
 
     @DataBoundConstructor
-    public AnsibleProjectBranchParameterDefinition(String name, String description, String projectId) {
+    public AnsibleProjectRefParameterDefinition(String name, String description, String projectId) {
         super(name);
         setDescription(description);
         this.projectId = projectId;
@@ -41,24 +41,24 @@ public class AnsibleProjectBranchParameterDefinition extends ParameterDefinition
 
     public List<String> getChoices() {
         try {
-            LOGGER.info("Fetching branches for project: " + projectId);
+            LOGGER.log(Level.INFO, "Fetching branches for project: {0}", projectId);
 
             // Get the ansible project
             AnsibleProjectsGlobalConfiguration config = AnsibleProjectsGlobalConfiguration.get();
             AnsibleProject project = config.getProjectById(projectId);
 
             if (project == null) {
-                LOGGER.warning("Project not found: " + projectId);
+                LOGGER.log(Level.WARNING, "Project not found: {0}", projectId);
                 return Arrays.asList("Project not found");
             }
 
             String repoUrl = project.getRepository();
             if (repoUrl == null || repoUrl.trim().isEmpty()) {
-                LOGGER.warning("No repository URL for project: " + projectId);
+                LOGGER.log(Level.WARNING, "No repository URL for project: {0}", projectId);
                 return Arrays.asList("No repository configured");
             }
 
-            LOGGER.info("Getting branches from: " + repoUrl);
+            LOGGER.log(Level.INFO, "Getting branches from: {0}", repoUrl);
 
             // Get branches using Git client
             List<String> branches = new ArrayList<>();
@@ -71,7 +71,7 @@ public class AnsibleProjectBranchParameterDefinition extends ParameterDefinition
                 }
             }
 
-            LOGGER.info("Found " + branches.size() + " branches");
+            LOGGER.log(Level.INFO, "Found {0} branches", branches.size());
             return branches;
 
         } catch (Exception e) {

@@ -1,10 +1,33 @@
 unclassified:
-  deploymentJobs:
+  pulsarDeployments:
     jobs:
       - id: "ping-vm"
         name: "Ping an environment"
         category: "Utilities"
-        jobTemplate: "ping"
+        templateName: "ping"
         params:
-          - name: imagePath
-            value: "harbor.company.com/services/user-api"
+          - name: ref
+            value: "main"
+    templates:
+      - name: "ping"
+        description: "Ping an environment"
+        params:
+          - name: "environment"
+            type: "environment"
+            description: "Target environment"
+          - name: "ref"
+            type: "ansibleProjectRef"
+            description: "Select ansible project ref"
+            properties:
+              - name: "projectId"
+                value: "ansible"
+        script: |
+          node {
+            ansibleProject(projectId: 'ansible', ref: deployParams.ref) {
+              ansiblePlaybook(
+                user: 'ansible',
+                playbook: 'playbooks/ping.yml',
+                envName: deployParams.environment
+              )
+            }
+          }

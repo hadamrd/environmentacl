@@ -3,7 +3,7 @@ package io.jenkins.plugins.pulsar.shared;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 
 public class PipelineHelper {
-    
+
     public static String getParameter(StepContext context, String paramName) {
         try {
             hudson.model.Run<?, ?> run = context.get(hudson.model.Run.class);
@@ -21,7 +21,7 @@ public class PipelineHelper {
         }
         return null;
     }
-    
+
     public static String getRequiredParameter(StepContext context, String paramName) throws Exception {
         String value = getParameter(context, paramName);
         if (value == null) {
