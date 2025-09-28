@@ -30,7 +30,7 @@ update-center:
 	      "buildDate": "$(shell date -Iseconds)",
 	      "name": "$(PLUGIN_NAME)",
 	      "version": "$(PLUGIN_VERSION)",
-	      "url": "https://github.com/yourorg/$(PLUGIN_NAME)-plugin/releases/download/v$(PLUGIN_VERSION)/$(PLUGIN_NAME)-plugin-$(PLUGIN_VERSION).hpi"
+	      "url": "https://github.com/hadamard/$(PLUGIN_NAME)-plugin/releases/download/v$(PLUGIN_VERSION)/$(PLUGIN_NAME)-plugin-$(PLUGIN_VERSION).hpi"
 	    }
 	  }
 	}
