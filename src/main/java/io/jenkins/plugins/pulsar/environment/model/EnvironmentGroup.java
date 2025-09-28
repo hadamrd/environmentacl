@@ -15,9 +15,10 @@ public class EnvironmentGroup implements Describable<EnvironmentGroup>, Serializ
     private final String name;
     private String description;
     private List<String> environments;
-    private List<String> tags; // New: Environment tags for enterprise filtering
+    private List<String> tags;
     private String sshCredentialId;
     private List<VaultCredentialMapping> vaultCredentials;
+    private List<String> nodeLabels;
 
     @DataBoundConstructor
     public EnvironmentGroup(String name) {
@@ -25,9 +26,10 @@ public class EnvironmentGroup implements Describable<EnvironmentGroup>, Serializ
         this.environments = new ArrayList<>();
         this.tags = new ArrayList<>();
         this.vaultCredentials = new ArrayList<>();
+        this.nodeLabels = new ArrayList<>(); // Initialize node labels
     }
 
-    // Getters and setters
+    // Existing getters and setters...
     public String getName() {
         return name;
     }
@@ -77,6 +79,15 @@ public class EnvironmentGroup implements Describable<EnvironmentGroup>, Serializ
         this.vaultCredentials = vaultCredentials != null ? vaultCredentials : new ArrayList<>();
     }
 
+    public List<String> getNodeLabels() {
+        return nodeLabels != null ? nodeLabels : new ArrayList<>();
+    }
+
+    @DataBoundSetter
+    public void setNodeLabels(List<String> nodeLabels) {
+        this.nodeLabels = nodeLabels != null ? nodeLabels : new ArrayList<>();
+    }
+
     // Helper method to get vault credential by vaultId
     public String getVaultCredentialId(String vaultId) {
         return getVaultCredentials().stream()
@@ -84,6 +95,14 @@ public class EnvironmentGroup implements Describable<EnvironmentGroup>, Serializ
                 .map(VaultCredentialMapping::getCredentialId)
                 .findFirst()
                 .orElse(null);
+    }
+
+    public String getNodeLabelsAsString() {
+        List<String> labels = getNodeLabels();
+        if (labels.isEmpty()) {
+            return "master"; // Default fallback
+        }
+        return String.join(" && ", labels); // Jenkins label expression format
     }
 
     @Extension

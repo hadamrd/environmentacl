@@ -1,0 +1,10 @@
+unclassified:
+  deploymentJobs:
+    jobs:
+      - id: "ping-vm"
+        name: "Ping an environment"
+        category: "Utilities"
+        jobTemplate: "ping"
+        params:
+          - name: imagePath
+            value: "harbor.company.com/services/user-api"

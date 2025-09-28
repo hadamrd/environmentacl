@@ -46,7 +46,6 @@ public class EnvironmentACLGlobalConfiguration extends GlobalConfiguration {
         save();
     }
 
-    // Utility methods
     public List<String> getAllEnvironments() {
         return getEnvironmentGroups().stream()
                 .flatMap(group -> group.getEnvironments().stream())
@@ -64,5 +63,21 @@ public class EnvironmentACLGlobalConfiguration extends GlobalConfiguration {
     public String getVaultCredentialId(String environment, String vaultId) {
         EnvironmentGroup group = getEnvironmentGroupForEnvironment(environment);
         return group != null ? group.getVaultCredentialId(vaultId) : null;
+    }
+
+    public String getNodeLabelsForEnvironment(String environment) {
+        EnvironmentGroup group = getEnvironmentGroupForEnvironment(environment);
+        if (group == null) {
+            throw new RuntimeException("Group is not mapped to any node labels!");
+        }
+        return group.getNodeLabelsAsString();
+    }
+
+    public List<String> getNodeLabelsListForEnvironment(String environment) {
+        EnvironmentGroup group = getEnvironmentGroupForEnvironment(environment);
+        if (group == null) {
+            throw new RuntimeException("Group is not mapped to any node labels!");
+        }
+        return group.getNodeLabels();
     }
 }

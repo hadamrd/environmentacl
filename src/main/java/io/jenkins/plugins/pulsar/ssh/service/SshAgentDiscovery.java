@@ -18,26 +18,28 @@ public class SshAgentDiscovery extends ComputerListener {
 
     @Override
     public void onOnline(Computer computer, TaskListener listener) {
-        try {
-            String nodeName = computer.getName();
-            LOGGER.info("Starting ssh discovery for node: " + nodeName);
-            
-            hudson.Launcher launcher;
-            if (computer == Jenkins.get().toComputer()) {
-                launcher = new hudson.Launcher.LocalLauncher(listener);
-            } else if (computer.getChannel() != null) {
-                launcher = new hudson.Launcher.RemoteLauncher(listener, computer.getChannel(), false);
-            } else {
-                LOGGER.warning("No channel available for node: " + nodeName + ", skipping ssh-agent discovery");
-                return;
+        new Thread(() -> {
+            try {
+                String nodeName = computer.getName();
+                LOGGER.info("Starting ssh discovery for node: " + nodeName);
+                
+                hudson.Launcher launcher;
+                if (computer == Jenkins.get().toComputer()) {
+                    launcher = new hudson.Launcher.LocalLauncher(listener);
+                } else if (computer.getChannel() != null) {
+                    launcher = new hudson.Launcher.RemoteLauncher(listener, computer.getChannel(), false);
+                } else {
+                    LOGGER.warning("No channel available for node: " + nodeName + ", skipping ssh-agent discovery");
+                    return;
+                }
+                
+                discoverAndAdoptSshAgents(nodeName, launcher, listener);
+                LOGGER.info("Ssh-Agent discovery completed for node: " + nodeName);
+                
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "Failed to discover ssh-agents for node: " + computer.getName(), e);
             }
-            
-            discoverAndAdoptSshAgents(nodeName, launcher, listener);
-            LOGGER.info("Ssh-Agent discovery completed for node: " + nodeName);
-            
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to discover ssh-agents for node: " + computer.getName(), e);
-        }
+        }).start();
     }
 
     /**
@@ -101,9 +103,7 @@ public class SshAgentDiscovery extends ComputerListener {
                 .joinWithTimeout(15, TimeUnit.SECONDS, listener);
             
             if (exitCode == 0) {
-                String result = output.toString(StandardCharsets.UTF_8).trim();
-                LOGGER.info("DEBUG: Agent processes found: " + result);
-                
+                String result = output.toString(StandardCharsets.UTF_8).trim();                
                 if (!result.isEmpty()) {
                     String[] lines = result.split("\n");
                     for (String line : lines) {

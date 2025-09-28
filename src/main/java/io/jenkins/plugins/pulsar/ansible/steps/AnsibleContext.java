@@ -102,7 +102,6 @@ public class AnsibleContext implements Serializable {
             AnsibleContext context = new AnsibleContext(
                     projectId, ref, project, nodeName, contextKey, projectDir);
 
-            // Initialize everything
             context.initialize(stepContext, containerOptions, launcher, listener);
 
             activeContexts.put(contextKey, context);
