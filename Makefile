@@ -1,64 +1,53 @@
-# Makefile for Jenkins Plugin Development
-JENKINS_HOME = /data/jenkins
-HPI_FILE = target/environmentacl.hpi
-PLUGIN_NAME = deployment-dashboard
-SSH_OPTS = -o LogLevel=ERROR -o StrictHostKeyChecking=accept-new -o ControlMaster=auto -o ControlPath=/tmp/ssh_mux_%h_%p_%r -o ControlPersist=10m
-JENKINS_URL = http://your-jenkins-master-url:8080
-JENKINS_USER = jenkins-admin
-JENKINS_CLI_JAR = jenkins-cli.jar
-JENKINS_CLI = java -jar $(JENKINS_CLI_JAR) -s $(JENKINS_URL) -auth $(JENKINS_USER):$(JENKINS_API_TOKEN)
-JENKINS_USER = jenkins
-JENKINS_GROUP = jenkins
-JENKINS_HOST= your-jenkins-host
-
-.PHONY: lint run build install brun deploy get-cli
-.ONESHELL:
-SHELL := /bin/bash
-
-lint:
-	mvn spotless:apply
-
-run:
-	@echo "Starting Jenkins in development mode..."
-# 	@dos2unix .env
-# 	@dos2unix .secrets
-	export MAVEN_OPTS="-Dhost=0.0.0.0 -Dport=8080 --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED"
-# 	@set -a && source .env && source .secrets && set +a && 
-	mvn clean compile hpi:run
+# Enhanced Makefile for Jerakin Plugin Distribution
+PLUGIN_VERSION = $(shell mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+PLUGIN_NAME = jerakin
+RELEASE_DIR = releases
+HPI_FILE = target/$(PLUGIN_NAME)-plugin.hpi
 
 build:
-	@echo "Building the plugin..."
+	@echo "Building jerakin plugin version $(PLUGIN_VERSION)..."
 	mvn clean package -DskipTests
 
-get-cli:
-	@if [ ! -f $(JENKINS_CLI_JAR) ]; then \
-		echo "Downloading Jenkins CLI..."; \
-		curl -o $(JENKINS_CLI_JAR) $(JENKINS_URL)/jnlpJars/jenkins-cli.jar; \
-	fi
+# Release builds
+release-build:
+	@echo "Building release version $(PLUGIN_VERSION)..."
+	mvn clean package -Dchangelist= -DskipTests -Dspotbugs.skip=true
+	mkdir -p $(RELEASE_DIR)
+	cp target/*.hpi $(RELEASE_DIR)/$(PLUGIN_NAME)-plugin-$(PLUGIN_VERSION).hpi
+	@echo "Release artifact: $(RELEASE_DIR)/$(PLUGIN_NAME)-plugin-$(PLUGIN_VERSION).hpi"
 
-deploy:
-	@scp $(SSH_OPTS) $(HPI_FILE) $(JENKINS_HOST):/tmp/$(PLUGIN_NAME).hpi; \
-	ssh $(SSH_OPTS) $(JENKINS_HOST) "sudo mv /tmp/$(PLUGIN_NAME).hpi $(JENKINS_HOME)/plugins/ && sudo chown $(JENKINS_USER):$(JENKINS_GROUP) $(JENKINS_HOME)/plugins/$(PLUGIN_NAME).hpi && sudo docker restart jenkins"
+github-release: release-build
+	gh release create v$(PLUGIN_VERSION) $(RELEASE_DIR)/$(PLUGIN_NAME)-plugin-$(PLUGIN_VERSION).hpi \
+		--title "Jerakin Plugin v$(PLUGIN_VERSION)" \
+		--notes "Configuration-driven Jenkins deployment framework with job templating and environment access control."
 
-restart:
-	@echo "Restarting Jenkins via API..."
-	@curl -X POST -u $(JENKINS_USER):$(JENKINS_API_TOKEN) "$(JENKINS_URL)/safeRestart"
-	@echo "Jenkins restarting... Please wait for it to come back online."
+# Update center generation
+update-center:
+	@cat > $(RELEASE_DIR)/update-center.json << EOF
+	{
+	  "plugins": {
+	    "$(PLUGIN_NAME)": {
+	      "buildDate": "$(shell date -Iseconds)",
+	      "name": "$(PLUGIN_NAME)",
+	      "version": "$(PLUGIN_VERSION)",
+	      "url": "https://github.com/yourorg/$(PLUGIN_NAME)-plugin/releases/download/v$(PLUGIN_VERSION)/$(PLUGIN_NAME)-plugin-$(PLUGIN_VERSION).hpi"
+	    }
+	  }
+	}
+	EOF
 
-bdeploy: lint build deploy
+release: lint release-build github-release update-center
+	@echo "Jerakin plugin $(PLUGIN_VERSION) released!"
 
-install:
-	@echo "Installing the plugin..."
-	mvn clean install -DskipTests -Dspotbugs.skip=true
-
-brun: build run
+# Version management
+version-bump:
+	@read -p "Enter new version (current: $(PLUGIN_VERSION)): " version; \
+	mvn versions:set -DnewVersion=$$version -DgenerateBackupPoms=false
 
 help:
-	@echo "Available commands:"
-	@echo "  make lint    - Run code linting (Spotless)"
-	@echo "  make run     - Run Jenkins in development mode"
-	@echo "  make build   - Build the plugin (skip tests)"
-	@echo "  make install - Install the plugin (skip tests)"
-	@echo "  make burn    - Build and then run Jenkins"
-	@echo "  make help    - Show this help message"
-	@echo "  make bdeploy  - Build, deploy, and restart Jenkins"
+	@echo "Distribution commands:"
+	@echo "  make release-build    - Build release version"
+	@echo "  make github-release   - Create GitHub release"
+	@echo "  make update-center    - Generate update center JSON"
+	@echo "  make release          - Complete release workflow"
+	@echo "  make version-bump     - Update version number"
