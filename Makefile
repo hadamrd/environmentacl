@@ -24,6 +24,11 @@ github-release: release-build
 release: lint release-build github-release update-center
 	@echo "Jerakin plugin $(PLUGIN_VERSION) released!"
 
+run:
+	@echo "Starting Jenkins in development mode..."
+	export MAVEN_OPTS="-Dhost=0.0.0.0 -Dport=8080 --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED"
+	mvn clean compile hpi:run
+
 # Version management
 version-bump:
 	@read -p "Enter new version (current: $(PLUGIN_VERSION)): " version; \
