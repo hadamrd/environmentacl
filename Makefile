@@ -21,21 +21,6 @@ github-release: release-build
 		--title "Jerakin Plugin v$(PLUGIN_VERSION)" \
 		--notes "Configuration-driven Jenkins deployment framework with job templating and environment access control."
 
-# Update center generation
-update-center:
-	@cat > $(RELEASE_DIR)/update-center.json << EOF
-	{
-	  "plugins": {
-	    "$(PLUGIN_NAME)": {
-	      "buildDate": "$(shell date -Iseconds)",
-	      "name": "$(PLUGIN_NAME)",
-	      "version": "$(PLUGIN_VERSION)",
-	      "url": "https://github.com/hadamard/$(PLUGIN_NAME)-plugin/releases/download/v$(PLUGIN_VERSION)/$(PLUGIN_NAME)-plugin-$(PLUGIN_VERSION).hpi"
-	    }
-	  }
-	}
-	EOF
-
 release: lint release-build github-release update-center
 	@echo "Jerakin plugin $(PLUGIN_VERSION) released!"
 
